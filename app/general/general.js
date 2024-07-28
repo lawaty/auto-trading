@@ -1,0 +1,443 @@
+"use strict";
+
+$(document).on('general-loaded', () => {
+  if (!token) {
+    redirect('login')
+    return;
+  }
+
+  Store.loadComponent('widgets/sidebar', $("#sidebar"))
+  // Store.loadComponent('widgets/header', $("#main-header"))
+
+  AJAX.ajax({
+    url: config.API + "/params",
+    type: "GET",
+    beforeSend: (xhr) => {
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+    },
+    complete: {
+      200: (xhr) => {
+        let is_live = xhr.parsed.globals.is_live
+        $("[name=is_live][value=" + is_live + "]").prop('checked', true)
+
+        $("#balance").val(xhr.parsed.balance)
+        let money_format = xhr.parsed.globals.money_format
+        $("[name=money_format][value=" + money_format + "]").prop('checked', true)
+        if (money_format != 1)
+          $("[name=money_format][value=" + money_format + "]").next().next().removeAttr('readonly')
+
+        $("[name=money]").val(xhr.parsed.globals.money)
+        $("#money").val(xhr.parsed.globals.money)
+        $("#money-percent").val(xhr.parsed.globals.money / xhr.parsed.balance * 100)
+
+        for (let API of xhr.parsed.globals.APIs)
+          addAPIKey(API.key, API.secret)
+
+        $("[name=market_opens_at]").val(xhr.parsed.globals.market_opens_at)
+        $("[name=market_closes_at]").val(xhr.parsed.globals.market_closes_at)
+
+        for (let day of xhr.parsed.globals.closed_days)
+          $(`[value=${day}]`).prop('checked', true)
+
+        $("[name=account_id]").val(xhr.parsed.globals.account_id)
+      }
+    }
+  })
+
+  window.form = new Form($("#general_settings"))
+
+  window.form.payload = function () {
+    let form_data = new FormData(form.form[0])
+
+    let closed_days_csv = form_data.getAll('closed_days[]').join(',');
+    form_data.delete('closed_days[]');
+    form_data.append('closed_days', closed_days_csv);
+
+    let keys_csv = form_data.getAll('keys[]').join(',');
+    form_data.delete('keys[]');
+    form_data.append('keys', keys_csv);
+
+    let secrets_csv = form_data.getAll('secrets[]').join(',');
+    form_data.delete('secrets[]');
+    form_data.append('secrets', secrets_csv);
+
+    for (let [key, value] of form_data.entries())
+      console.log(key, value)
+
+    return form_data
+  }
+
+  window.form.setCallback({
+    200: (xhr) => {
+      Swal.fire({
+        icon: "success",
+        text: "Updated Successfully"
+      })
+    }
+  })
+
+  $("#money").on('input', function () {
+    if ($(this).val() > $("#balance").val())
+      $(this).val($("#balance").val())
+
+    if ($(this).val() < 0)
+      $(this).val(0)
+
+    $("[name=money]").val($(this).val())
+  })
+
+  $("#money-percent").on('input', function () {
+    if ($(this).val() > 100)
+      $(this).val(100)
+
+    else if ($(this).val() < 0)
+      $(this).val(0)
+
+    $("[name=money]").val($("#balance").val() * $(this).val() / 100)
+  })
+
+  $("[name=money_format]").on('change', function () {
+    $("#money-row input[type=number]").attr('readonly', 'readonly')
+
+    $(this).next().next().removeAttr('readonly')
+  })
+
+  // Setup the calendar with the current date
+  // var date = new Date();
+  // var today = date.getDate();
+  // // Set click handlers for DOM elements
+  // $(".right-button").click({ date: date }, next_year);
+  // $(".left-button").click({ date: date }, prev_year);
+  // $(".month").click({ date: date }, month_click);
+  // $("#add-button").click({ date: date }, new_event);
+  // // Set current month as active
+  // $(".months-row").children().eq(date.getMonth()).addClass("active-month");
+  // init_calendar(date);
+  // var events = check_events(today, date.getMonth() + 1, date.getFullYear());
+  // show_events(events, months[date.getMonth()], today);
+})
+
+function addAPIKey(key = '', secret = '') {
+  $("#keys").append(`
+<li>
+  <div class="form-row">
+    <div class="mx-2" style="width: fit-content">
+      <p style="color:#fff;">#</p>
+      <i onclick="addAPIKey()" class="bi bi-plus-circle mr-1 text-success"></i>
+      <i onclick="$(this).closest('li').remove()" class="bi bi-trash text-danger"></i>
+    </div>
+    <div class="col form-group">
+      <label for="key">key</label>
+      <input type="text" value="${key}" name="keys[]" class="form-control" placeholder="Key">
+    </div>
+    <div class="col form-group">
+      <label for="key">Secret</label>
+      <input type="text" value="${secret}" name="secrets[]" class="form-control" placeholder="Secret">
+    </div>
+  </div>
+</li>`)
+}
+
+// // Given data for events in JSON format
+// var event_data = {
+//   "events": [
+//     {
+//       "occasion": " Repeated Test Event ",
+//       "invited_count": 120,
+//       "year": 2020,
+//       "month": 5,
+//       "day": 10,
+//       "cancelled": true
+//     },
+//     {
+//       "occasion": " Repeated Test Event ",
+//       "invited_count": 120,
+//       "year": 2020,
+//       "month": 5,
+//       "day": 10,
+//       "cancelled": true
+//     },
+//     {
+//       "occasion": " Repeated Test Event ",
+//       "invited_count": 120,
+//       "year": 2020,
+//       "month": 5,
+//       "day": 10,
+//       "cancelled": true
+//     },
+//     {
+//       "occasion": " Repeated Test Event ",
+//       "invited_count": 120,
+//       "year": 2020,
+//       "month": 5,
+//       "day": 10
+//     },
+//     {
+//       "occasion": " Repeated Test Event ",
+//       "invited_count": 120,
+//       "year": 2020,
+//       "month": 5,
+//       "day": 10,
+//       "cancelled": true
+//     },
+//     {
+//       "occasion": " Repeated Test Event ",
+//       "invited_count": 120,
+//       "year": 2020,
+//       "month": 5,
+//       "day": 10
+//     },
+//     {
+//       "occasion": " Repeated Test Event ",
+//       "invited_count": 120,
+//       "year": 2020,
+//       "month": 5,
+//       "day": 10,
+//       "cancelled": true
+//     },
+//     {
+//       "occasion": " Repeated Test Event ",
+//       "invited_count": 120,
+//       "year": 2020,
+//       "month": 5,
+//       "day": 10
+//     },
+//     {
+//       "occasion": " Repeated Test Event ",
+//       "invited_count": 120,
+//       "year": 2020,
+//       "month": 5,
+//       "day": 10,
+//       "cancelled": true
+//     },
+//     {
+//       "occasion": " Repeated Test Event ",
+//       "invited_count": 120,
+//       "year": 2020,
+//       "month": 5,
+//       "day": 10
+//     },
+//     {
+//       "occasion": " Test Event",
+//       "invited_count": 120,
+//       "year": 2020,
+//       "month": 5,
+//       "day": 11
+//     }
+//   ]
+// };
+
+// const months = [
+//   "January",
+//   "February",
+//   "March",
+//   "April",
+//   "May",
+//   "June",
+//   "July",
+//   "August",
+//   "September",
+//   "October",
+//   "November",
+//   "December"
+// ];
+
+// // Initialize the calendar by appending the HTML dates
+// function init_calendar(date) {
+//   $(".tbody").empty();
+//   $(".events-container").empty();
+//   var calendar_days = $(".tbody");
+//   var month = date.getMonth();
+//   var year = date.getFullYear();
+//   var day_count = days_in_month(month, year);
+//   var row = $("<tr class='table-row'></tr>");
+//   var today = date.getDate();
+//   // Set date to 1 to find the first day of the month
+//   date.setDate(1);
+//   var first_day = date.getDay();
+//   // 35+firstDay is the number of date elements to be added to the dates table
+//   // 35 is from (7 days in a week) * (up to 5 rows of dates in a month)
+//   for (var i = 0; i < 35 + first_day; i++) {
+//     // Since some of the elements will be blank, 
+//     // need to calculate actual date from index
+//     var day = i - first_day + 1;
+//     // If it is a sunday, make a new row
+//     if (i % 7 === 0) {
+//       calendar_days.append(row);
+//       row = $("<tr class='table-row'></tr>");
+//     }
+//     // if current index isn't a day in this month, make it blank
+//     if (i < first_day || day > day_count) {
+//       var curr_date = $("<td class='table-date nil'>" + "</td>");
+//       row.append(curr_date);
+//     }
+//     else {
+//       var curr_date = $("<td class='table-date'>" + day + "</td>");
+//       var events = check_events(day, month + 1, year);
+//       if (today === day && $(".active-date").length === 0) {
+//         curr_date.addClass("active-date");
+//         show_events(events, months[month], day);
+//       }
+//       // If this date has any events, style it with .event-date
+//       if (events.length !== 0) {
+//         curr_date.addClass("event-date");
+//       }
+//       // Set onClick handler for clicking a date
+//       curr_date.click({ events: events, month: months[month], day: day }, date_click);
+//       row.append(curr_date);
+//     }
+//   }
+//   // Append the last row and set the current year
+//   calendar_days.append(row);
+//   $(".year").text(year);
+// }
+
+// // Get the number of days in a given month/year
+// function days_in_month(month, year) {
+//   var monthStart = new Date(year, month, 1);
+//   var monthEnd = new Date(year, month + 1, 1);
+//   return (monthEnd - monthStart) / (1000 * 60 * 60 * 24);
+// }
+
+// // Event handler for when a date is clicked
+// function date_click(event) {
+//   $(".events-container").show(250);
+//   $("#dialog").hide(250);
+//   $(".active-date").removeClass("active-date");
+//   $(this).addClass("active-date");
+//   show_events(event.data.events, event.data.month, event.data.day);
+// };
+
+// // Event handler for when a month is clicked
+// function month_click(event) {
+//   $(".events-container").show(250);
+//   $("#dialog").hide(250);
+//   var date = event.data.date;
+//   $(".active-month").removeClass("active-month");
+//   $(this).addClass("active-month");
+//   var new_month = $(".month").index(this);
+//   date.setMonth(new_month);
+//   init_calendar(date);
+// }
+
+// // Event handler for when the year right-button is clicked
+// function next_year(event) {
+//   $("#dialog").hide(250);
+//   var date = event.data.date;
+//   var new_year = date.getFullYear() + 1;
+//   $("year").html(new_year);
+//   date.setFullYear(new_year);
+//   init_calendar(date);
+// }
+
+// // Event handler for when the year left-button is clicked
+// function prev_year(event) {
+//   $("#dialog").hide(250);
+//   var date = event.data.date;
+//   var new_year = date.getFullYear() - 1;
+//   $("year").html(new_year);
+//   date.setFullYear(new_year);
+//   init_calendar(date);
+// }
+
+// // Event handler for clicking the new event button
+// function new_event(event) {
+//   // if a date isn't selected then do nothing
+//   if ($(".active-date").length === 0)
+//     return;
+//   // remove red error input on click
+//   $("input").click(function () {
+//     $(this).removeClass("error-input");
+//   })
+//   // empty inputs and hide events
+//   $("#dialog input[type=text]").val('');
+//   $("#dialog input[type=number]").val('');
+//   $(".events-container").hide(250);
+//   $("#dialog").show(250);
+//   // Event handler for cancel button
+//   $("#cancel-button").click(function () {
+//     $("#name").removeClass("error-input");
+//     $("#count").removeClass("error-input");
+//     $("#dialog").hide(250);
+//     $(".events-container").show(250);
+//   });
+//   // Event handler for ok button
+//   $("#ok-button").unbind().click({ date: event.data.date }, function () {
+//     var date = event.data.date;
+//     var name = $("#name").val().trim();
+//     var count = parseInt($("#count").val().trim());
+//     var day = parseInt($(".active-date").html());
+//     // Basic form validation
+//     if (name.length === 0) {
+//       $("#name").addClass("error-input");
+//     }
+//     else if (isNaN(count)) {
+//       $("#count").addClass("error-input");
+//     }
+//     else {
+//       $("#dialog").hide(250);
+//       console.log("new event");
+//       new_event_json(name, count, date, day);
+//       date.setDate(day);
+//       init_calendar(date);
+//     }
+//   });
+// }
+
+// // Adds a json event to event_data
+// function new_event_json(name, count, date, day) {
+//   var event = {
+//     "occasion": name,
+//     "invited_count": count,
+//     "year": date.getFullYear(),
+//     "month": date.getMonth() + 1,
+//     "day": day
+//   };
+//   event_data["events"].push(event);
+// }
+
+// // Display all events of the selected date in card views
+// function show_events(events, month, day) {
+//   // Clear the dates container
+//   $(".events-container").empty();
+//   $(".events-container").show(250);
+//   console.log(event_data["events"]);
+//   // If there are no events for this date, notify the user
+//   if (events.length === 0) {
+//     var event_card = $("<div class='event-card'></div>");
+//     var event_name = $("<div class='event-name'>There are no events planned for " + month + " " + day + ".</div>");
+//     $(event_card).css({ "border-left": "10px solid #FF1744" });
+//     $(event_card).append(event_name);
+//     $(".events-container").append(event_card);
+//   }
+//   else {
+//     // Go through and add each event as a card to the events container
+//     for (var i = 0; i < events.length; i++) {
+//       var event_card = $("<div class='event-card'></div>");
+//       var event_name = $("<div class='event-name'>" + events[i]["occasion"] + ":</div>");
+//       var event_count = $("<div class='event-count'>" + events[i]["invited_count"] + " Invited</div>");
+//       if (events[i]["cancelled"] === true) {
+//         $(event_card).css({
+//           "border-left": "10px solid #FF1744"
+//         });
+//         event_count = $("<div class='event-cancelled'>Cancelled</div>");
+//       }
+//       $(event_card).append(event_name).append(event_count);
+//       $(".events-container").append(event_card);
+//     }
+//   }
+// }
+
+// // Checks if a specific date has any events
+// function check_events(day, month, year) {
+//   var events = [];
+//   for (var i = 0; i < event_data["events"].length; i++) {
+//     var event = event_data["events"][i];
+//     if (event["day"] === day &&
+//       event["month"] === month &&
+//       event["year"] === year) {
+//       events.push(event);
+//     }
+//   }
+//   return events;
+// }

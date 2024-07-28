@@ -1,0 +1,76 @@
+<?php
+
+require_once __DIR__ . "../../../autoload.php";
+
+function restart()
+{
+  $new_process = new Process("updateMarketTiming");
+  if ($new_process->run(Process::BACKGROUND)) {
+    exit;
+  }
+}
+
+while (true) {
+  try {
+    echo "Fetching...\n";
+    $html = file_get_contents("https://api.crawlbase.com/?token=LDHkofAU5ilNXO0TaXr-DQ&url=https://www.forexchurch.com/stock-market-holidays/new-york-stock-exchange");
+
+    if ($html === FALSE) {
+      echo "Failed to fetch the HTML content.\n";
+      continue;
+    }
+
+    $dom = new DOMDocument();
+    @$dom->loadHTML($html);
+    $xpath = new DOMXPath($dom);
+    $query = "//table[@id='holStatusTable']/tbody/tr[1]";
+    $nodes = $xpath->query($query);
+
+    if ($nodes->length > 0) {
+      $firstRow = $nodes->item(0);
+      $data = $firstRow->childNodes;
+    } else {
+      echo "Failed to find the table or its first row.\n";
+      sleep(60 * 2);
+      continue;
+    }
+
+    $status = trim($data->item(1)->textContent);
+    $open_time = new Ndate(trim($data->item(3)->textContent));
+    $close_time = new Ndate(trim($data->item(5)->textContent));
+    $now = new Ndate;
+
+    if ($now->before($open_time))
+      $event_at = $open_time;
+    else if ($now->before($close_time))
+      $event_at = $close_time;
+    else {
+      $event_at = $open_time;
+      $event_at->addDays(1);
+    }
+
+    $all_params = json_decode(file_get_contents(JSONS_DIR . '/params.json'), true);
+    $all_params['globals']['status'] = $status;
+    $all_params['globals']['until'] = $event_at->format(Ndate::DATE_TIME);
+    file_put_contents(JSONS_DIR . '/params.json', json_encode($all_params));
+
+    $restart_at = (new Ndate('01:00:00'))->addDays(1);
+    $till_event = $now->minutesUntil($event_at);
+    $max_wait = 60 * 8;
+
+    echo "Status: $status\tNext bell rings in $till_event mins \n";
+    echo "Market Timing is Updated — at " . $now->format(Ndate::DATE_TIME) . "\n";
+
+    $wait_time = min($max_wait, ($till_event + 1));
+
+    echo "Waiting $wait_time mins till next update.\n\n";
+    sleep($wait_time * 60); // Convert to seconds for sleep
+
+    if ((new Ndate())->after($restart_at)) {
+      restart();
+    }
+  } catch (Exception | Error $e) {
+    echo (new Ndate)->format(Ndate::DATE_TIME) . ": " . trace($e) . "\n";
+    file_put_contents(__DIR__ . '/logs/updateMarketTiming.err', (new Ndate)->format(Ndate::DATE_TIME) . ": " . -trace($e) . "\n", FILE_APPEND);
+  }
+}

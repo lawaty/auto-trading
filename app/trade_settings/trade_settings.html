@@ -1,0 +1,57 @@
+<div class="page-wrapper" id="main-wrapper" data-layout="vertical" data-navbarbg="skin6" data-sidebartype="full"
+  data-sidebar-position="fixed" data-header-position="fixed">
+  <div id="sidebar"></div>
+  <!--  Main wrapper -->
+  <div class="body-wrapper">
+    <div id="main-header"></div>
+
+    <div class="main container p-3">
+      <section class="mt-2 mb-4">
+        <div class="d-flex align-items-center">
+          <h2 class="my-3">Buy Processes</h2>
+          <button id="buy-start" class="btn btn-success h-50 ml-2" onclick="runTrader(this, 'buy')">Run</button>
+          <button id="buy-stop" class="btn btn-danger h-50 ml-2" style="display: none;" onclick="stopTrader(this, 'buy')">Stop</button>
+        </div>
+        <form class="py-2 px-4" id="buy_settings" endpoint="params/SetBuyParams" type="POST">
+          <h3>Buy Processes</h3>
+          <ul id="buy-runs">
+            
+          </ul>
+
+          <button type="button" submit="buy_settings" class="btn btn-primary my-3">Submit</button>
+        </form>
+      </section>
+
+      <section class="mt-2 mb-4">
+        <div class="d-flex align-items-center">
+          <h2 class="my-3">Sell Settings</h2>
+          <button id="sell-start" class="btn btn-success h-50 ml-2" onclick="runTrader(this, 'short')">Run</button>
+          <button id="sell-stop" class="btn btn-danger h-50 ml-2" style="display: none;" onclick="stopTrader(this, 'short')">Stop</button>
+        </div>
+        <form class="py-2 px-4" id="sell_settings" endpoint="params/SetSellParams" type="POST">
+          <div class="form-group">
+            <label for="buy-number_of_trades">Number of Trades</label>
+            <input class="form-control" id="buy-number_of_trades" name="number_of_trades" placeholder="e.g. 10">
+          </div>
+          
+          <div class="form-group">
+            <label for="start_after">Start After (in mins)</label>
+            <input class="form-control" id="start_after" name="trade_after" placeholder="e.g. 10">
+          </div>
+
+          <label>Sell Sequences</label>
+          <ul id="sell-sequences">
+            <!-- Dynamically Loaded -->
+          </ul>
+
+          <div class="form-group">
+            <label for="sell_stop_loss">Stop Loss Percent</label>
+            <input class="form-control" id="sell_stop_loss" name="stop_loss_percent" placeholder="e.g. 10">
+          </div>
+
+          <button type="button" submit="sell_settings" class="btn btn-primary my-3">Submit</button>
+        </form>
+      </section>
+    </div>
+  </div>
+</div>

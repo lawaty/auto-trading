@@ -1,0 +1,6 @@
+{
+    "require": {
+        "firebase/php-jwt": "^6.10",
+        "finnhub/client": "^1.1"
+    }
+}

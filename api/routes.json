@@ -1,0 +1,27 @@
+{
+  "testing/GetTable": "testing/GetTable.php",
+  "testing/TestProcess": "testing/TestProcess.php",
+  "testing/Shutdown": "testing/Shutdown.php",
+  "testing/Yrab": "testing/Yrab.php",
+  "testing/login": "testing/login.php",
+  "testing/getFilters": "testing/GetFilters.php",
+  "test": "testing/Test.php",
+
+  "params/SetGlobalParams" : "params/SetGlobalParams.php",
+  "params/SetBuyParams" : "params/SetBuyParams.php",
+  "params/SetSellParams" : "params/SetSellParams.php",
+  "params/SetCalanderParams" : "params/SetCalanderParams.php",
+  "params": "params/GetAll.php",
+  "params/{which}": "params/GetAll.php",
+  "yrab": "testing/Yrab.php",
+
+  "login": "Login.php",
+
+  "start/{process}": "Start.php",
+  "stop/{process}": "Stop.php",
+
+  "clearOrders": "BulkClearOrders.php",
+  "operations/{which}": "StockOperations.php",
+  "testStocks/{which}": "testing/TestStocks.php",
+  "{which}/testStockConds": "testing/TestStockMonitorConds.php" 
+}

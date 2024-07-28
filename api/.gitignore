@@ -1,0 +1,16 @@
+# Ignore the .vscode directory
+.vscode/
+
+# Ignore all .db files in all subdirectories
+**/*.db
+
+# Ignore all .log files in all subdirectories
+**/*.log
+
+# Ignore all .err files in all subdirectories
+**/*.err
+
+# Environment Variables
+**/.env
+
+core/scripts/*.zip
