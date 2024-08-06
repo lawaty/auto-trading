@@ -7,17 +7,6 @@ class Parser
     {
     }
 
-    public static function getConds($filter_id, $cookie)
-    {
-        $curl = new ArteCurl(static::$html_url);
-        $curl->setHeaders(["Cookie" => $cookie]);
-        $html = $curl->send('GET', ['sid' => $filter_id])->getBody();
-
-        preg_match("/var signal = jsonParse\((\'|\")(.*?)(\'|\")\)/", $html, $matches);
-
-        return json_decode($matches[2], true)['definition'];
-    }
-
     public static function getDataFromTable($table_html)
     {
         $dom = new DOMDocument();

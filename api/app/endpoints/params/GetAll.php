@@ -1,11 +1,11 @@
 <?php
 
-class GetAll extends Authenticated
+class GetAll extends Endpoint
 {
   public function __construct()
   {
     $this->init([
-      'which' => [false, Regex::ANY]
+      'which' => [false, "/^(buy|short)$/"]
     ], $_GET);
   }
 
@@ -14,6 +14,7 @@ class GetAll extends Authenticated
     $all_params = json_decode(file_get_contents(JSONS_DIR . '/params.json'), true);
     $tradestation = new TradeStation('buy');
     $tradestation->refreshToken();
+
     try {
       $balance = $tradestation->getBalance();
     } catch (InvalidAccountID $e) {

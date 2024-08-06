@@ -17,14 +17,13 @@ class Validator
   public function __construct(array $expect, bool $is_many = SINGLE)
   {
     foreach ($expect as $param => $criteria) {
-      if(!isset($criteria[2]))
+      if (!isset($criteria[2]))
         $criteria[2] = false;
 
       if (!isset($criteria[0], $criteria[1])) {
         throw new InvalidArgumentException("Criteria must have at least two elements: required, validation, and optionally is_many but found: " . print_r($criteria, true));
       }
 
-      var_dump($criteria);
 
       if (is_array($criteria[1])) { // Nesting Validators
         $this->expect[$param] = [
@@ -40,14 +39,25 @@ class Validator
     }
   }
 
-  public function formatError(string $path_to_invalid, array $data) {
+  public function formatError(string $path_to_invalid, array $data)
+  {
     $keys = explode(' -> ', $path_to_invalid);
     $value = $data;
+
     foreach ($keys as $key) {
       if (preg_match('/\[(.*?)\]$/', $key, $matches)) {
-        $value = $value[explode('[', $key)][0][$matches[1]] ?? null;
-      } else
-        $value = $value[$key];
+        $mainKey = substr($key, 0, strpos($key, '['));
+        $index = $matches[1];
+
+        if (isset($value[$mainKey]) && is_array($value[$mainKey])) {
+          $value = $value[$mainKey][$index] ?? null;
+        } else {
+          $value = null;
+          break;
+        }
+      } else {
+        $value = $value[$key] ?? null;
+      }
     }
 
     $value = json_encode($value);
@@ -60,9 +70,9 @@ class Validator
       [$required, $validation, $is_many] = $criteria;
       $currentPath = $path ? "$path -> $param" : $param;
 
-      if ($required === REQ && empty($input[$param])) {
+      if ($required === REQ && !isset($input[$param])) {
         return $currentPath;
-      } elseif ($required === OPT && empty($input[$param])) {
+      } elseif ($required === OPT && !isset($input[$param])) {
         continue;
       }
 
@@ -128,7 +138,7 @@ class Validator
             if (is_array($input[$param]))
               if (isset($input[$param][0]))
                 $input[$param] = $input[$param][0];
-              else if (empty($input[$param]))
+              else if (!isset($input[$param]))
                 $input[$param] = '';
 
             $result[$param] = $input[$param];
@@ -154,7 +164,7 @@ class Validator
   {
     echo "<pre>";
     foreach ($this->expect as $param => $criteria) {
-      [$required, $is_many, $validation] = $criteria;
+      [$required, $validation, $is_many] = $criteria;
       echo str_repeat("    ", $indentation) . "$param => ";
 
       if (is_string($validation)) {

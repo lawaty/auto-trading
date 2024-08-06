@@ -13,26 +13,30 @@ class Sequence
   private Ndate $bell;
   private array $stages;
   private float $danger;
+  private int $number_of_trades;
 
-  private function parseArgs($argv)
+  private function parseArgs(array $args): void
   {
-    $stock = [];
-    for ($i = 0; $i < count($argv); $i += 2)
-      $stock[$argv[$i]] = $argv[$i + 1];
+    $this->danger = $args['stop_loss_percent'];
+    $this->stages = $args['sequences'];
+    $this->number_of_trades = $args['number_of_trades'];
 
-    return $stock;
+    unset($args['number_of_trades']);
+    unset($args['trade_after']);
+    unset($args['stop_loss_percent']);
+    unset($args['sequences']);
+    unset($args['sid']);
+
+    $this->stock = $args;
   }
 
   public function __construct(array $argv)
   {
-    $this->stock = $this->parseArgs($argv);
+    $this->parseArgs($argv);
 
     $this->config = new Config;
     $this->bell = new Ndate($this->config['globals']['until']);
     $this->trade_station = new TradeStation("buy");
-
-    $this->danger = $this->config['buy']['stop_loss_percent'];
-    $this->stages = $this->config['buy']['sequences'];
   }
 
   public function run(): void
@@ -42,6 +46,7 @@ class Sequence
     foreach ($this->stages as $i => $stage_config) {
       echo "\nStage $i: {$stage_config['percent']} limit\n";
       $this->stock['quantity'] = $this->trade_station->getExecQuantity($this->stock['limitbuy_order_id']);
+      echo "Actual Executed Quantity: " . $this->stock['quantity'] . "\n";
 
       if (!isset($this->stock['stoploss_id'])) {
         [$this->stock['stoploss_id'], $this->stock['limitsell_id']] = $this->trade_station->placeOCO($this->stock, [[
@@ -86,6 +91,8 @@ class Sequence
       $this->trade_station->placeOrder($this->stock, 'Market', 'SELL');
       echo "Failed to reach any of the limits, Selling anyways\n";
     } else {
+      echo "FilledPrice: " . $is_filled[2] . "\n";
+
       StockLogger::logStock(
         "Buy",
         "OCO Limit " . $is_filled[0],
@@ -139,5 +146,5 @@ class Sequence
   }
 }
 
-$sequence = new Sequence(array_slice($argv, 1));
+$sequence = new Sequence(json_decode($argv[1], true));
 $sequence->run();

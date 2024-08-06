@@ -2,7 +2,7 @@
 
 abstract class Authenticated extends Endpoint
 {
-  protected function init(array $expect, array $request): void
+  public function init(array $expect, array $request): void
   {
     parent::init(
       [...$expect, 'Authorization' => [true, Regex::JWT_BEARER]],

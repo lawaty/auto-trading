@@ -1,0 +1,58 @@
+body, html {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+  }
+  
+  .page-wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+  }
+  
+  .body-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .container-fluid {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    flex: 1;
+    overflow-y: auto;
+  }
+  
+  .card {
+    position: relative;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 16px;
+  }
+  
+  .close-btn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+  }
+  
+  .d-flex {
+    display: flex;
+    align-items: center;
+  }
+  
+  .mr-2 {
+    margin-right: 0.5rem;
+  }
+  

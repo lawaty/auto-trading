@@ -8,6 +8,7 @@ var config = {
     "home": "home",
     "account": "account",
     "general" : "general",
-    "trade_settings": "trade_settings"
+    "trade_settings": "trade_settings",
+    "excluded_stocks": "excluded_stocks"
   }
 }

@@ -30,3 +30,15 @@ const token = local.get('token') ? local.get('token') : false
 // ------ template pluginCustomization.js
 $(document).on('component-loaded', () => {
 })
+
+window.filters = undefined
+AJAX.ajax({
+  url: config.API + '/stockMonitor/getFilters',
+  type: "GET",
+  complete: {
+    200: (xhr) => {
+      window.filters = xhr.parsed
+      $(document).trigger('filters-loaded')
+    }
+  }
+})

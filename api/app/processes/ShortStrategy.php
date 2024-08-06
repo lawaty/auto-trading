@@ -8,52 +8,59 @@ class ShortStrategy
   private StockMonitor $stock_monitor;
   private array $stocks;
 
+  private array $args;
+
   private Config $config;
 
   private function fetchStocks()
   {
+    $stocks = null;
     do {
-      $stocks = $this->stock_monitor->initFilter(StockMonitor::SELL);
       try {
-        $stocks = $this->stock_monitor->getStocks(StockMonitor::SELL);
+        $stocks = $this->stock_monitor->getStocks($this->args['sid'], StockMonitor::SELL);
       } catch (Exception | Error $e) {
-        $this->stock_monitor->initFilter(StockMonitor::SELL);
+        echo trace($e);
       }
+
+      if (!$stocks)
+        echo "No Stocks Returned. Retrying...\n";
     } while (!$stocks);
 
     foreach ($stocks as &$stock)
       $stock['price'] = (int)str_replace(',', '', $stock['price']);
 
-    return array_slice($stocks, 0, $this->config['short']['number_of_trades']);
+    return array_slice($stocks, 0, (int) $this->args['number_of_trades']);
   }
-
   public function reset()
   {
     $this->config->refresh();
     $this->trade_station->refreshSettings();
   }
 
-  public function __construct()
+  public function __construct(array $run_args)
   {
+    $this->args = $run_args;
+
+
     $this->trade_station = new TradeStation('short');
-    $this->stock_monitor = new StockMonitor;
     $this->config = new Config;
+
+    $this->stock_monitor = new StockMonitor($this->args['sid']);
     $this->reset();
   }
 
   private function processStocks()
   {
     $failed = [];
-
     $start = time();
 
     $log_dir = __DIR__ . '/logs/short/' . (new Ndate)->format();
-    if(!is_dir($log_dir))
+    if (!is_dir($log_dir))
       mkdir($log_dir);
 
-    foreach($this->stocks as $j => $stock) {
+    foreach ($this->stocks as $j => $stock) {
       $i = 1;
-      while(file_exists($log_dir . '/' . $stock['symbol'] . "-$i.log"))
+      while (file_exists($log_dir . '/' . $stock['symbol'] . "-$i.log"))
         $i++;
 
       $this->stocks[$j]['log'] = $log_dir . '/' . $stock['symbol'] . "-$i.log";
@@ -63,29 +70,37 @@ class ShortStrategy
       foreach ($this->stocks as $i => $stock) {
         $order = $this->trade_station->getOrder($stock['sellshort_order_id']);
         $status = $order['Status'];
+        echo "Market SELLSHORT {$stock['symbol']}: $status\n";
 
         if ($status == 'FLL' || $status == 'FPR') {
           $stock['price'] = round($order['FilledPrice'], 2);
+          echo "Filled with total price of $" . $stock['price'] * $order['Legs'][0]['QuantityOrdered'] . "\n";
           StockLogger::logStock('Short', "Filled SellShort", $stock);
 
-          $args = [];
-          foreach ($stock as $key => $value) {
-            $args[] = $key;
-            $args[] = $value;
-          }
-
           $process = new Process("limitBuy", $stock['log']);
-          $process->passArgs([...$args, 'sellshort_order_id', $stock['sellshort_order_id']]);
-          $process->run(Process::BACKGROUND);
+          $process->passArgs([
+            ...$stock,
+            ...$this->args
+          ], true);
+          if ($process->run(Process::BACKGROUND) === 1)
+            echo 'Started Sequence For ' . $stock['symbol'] . "\n";
           unset($this->stocks[$i]);
         } else if ($status == 'ACK') {
           // silence
+        } else if ($status == 'REJ') {
+          echo "Retrying...\n";
+          $this->stocks[$i]['price'] = $this->trade_station->getStockEstimatedPrice($stock['symbol'], 'Market', 'SELLSHORT');
+
+          echo "{$stock['symbol']}'s price = {$this->stocks[$i]['price']}\n";
+          try {
+            $this->stocks[$i]['sellshort_order_id'] = $this->trade_station->placeOrder($stock, 'Market', 'SELLSHORT');
+          } catch (InsufficientMoney $e) {
+            StockLogger::logStock('buy', "Insufficient Money Market SELLSHORT", $stock);
+          }
         } else {
           $failed[$stock['sellshort_order_id']] = $stock;
           unset($this->stocks[$i]);
         }
-
-        echo "Sell Short {$stock['symbol']}: $status\n";
       }
       echo "\n";
 
@@ -97,7 +112,6 @@ class ShortStrategy
         var_dump($this->trade_station->cancel($order_id));
         StockLogger::logStock('Short', 'Cancelled Sell Short', $order);
       }
-
     }
   }
 
@@ -106,12 +120,14 @@ class ShortStrategy
     $this->stocks = array_filter($this->stocks, function ($stock) use ($failures) {
       return !in_array($stock['symbol'], $failures);
     });
+
+    $this->args['number_of_trades'] = count($this->stocks);
   }
 
-  public function run(int $wait)
+  public function run()
   {
-    echo "Trading After: {$wait} mins \n";
-    sleep(max($wait * 60, 1));
+    echo "Trading After: {$this->args['trade_after']} mins \n";
+    sleep(max($this->args['trade_after'] * 60, 1));
     $this->stocks = $this->fetchStocks();
     $this->removeStocks($this->config['globals']['excluded']);
 
@@ -121,8 +137,18 @@ class ShortStrategy
     //////////////////////////// Sell Short and market init
     print_r("\nStage 0: Market Sell Short all stocks\n");
 
+    echo "Balance: " . $this->trade_station->getBalance() . "\nBuying Power: " . $this->trade_station->getBuyingPower() . "\n";
+    $this->trade_station->setTrades($this->args['number_of_trades']);
+
     foreach ($this->stocks as $i => $stock) {
-      $this->stocks[$i]['sellshort_order_id'] = $this->trade_station->placeOrder($stock, 'Market', 'SELLSHORT');
+      $stock['price'] = $this->trade_station->getStockEstimatedPrice($stock['symbol'], 'Market', 'SELLSHORT');
+      echo "{$stock['symbol']}'s price = {$stock['price']}\n";
+
+      try {
+        $this->stocks[$i]['sellshort_order_id'] = $this->trade_station->placeOrder($stock, 'Market', 'SELLSHORT');
+      } catch (InsufficientMoney $e) {
+        StockLogger::logStock('buy', "Insufficient Money Market SELLSHORT", $stock);
+      }
     }
 
     echo "Confirming Sellshort...\n";
@@ -131,5 +157,5 @@ class ShortStrategy
   }
 }
 
-$strategy = new ShortStrategy;
-$strategy->run($argv[1]);
+$strategy = new ShortStrategy(json_decode($argv[1], true));
+$strategy->run();

@@ -5,7 +5,7 @@ class Start extends Authenticated
   public function __construct()
   {
     $this->init([
-      'process' => [true, Regex::generic(1, 100)],
+      'process' => [true, "/^(Buy|Short)$/"],
     ], $_POST);
   }
 
@@ -22,7 +22,7 @@ class Start extends Authenticated
     if ($day = DayMapper::get(['date' => (new Ndate)->format('d-m-Y')]))
       $day->delete();
 
-    $opp = $this->request['process'] == 'Buy' ? 'Sell' : 'Buy';
+    $opp = $this->request['process'] == 'Buy' ? 'Short' : 'Buy';
     $processes = [
       ...Process::getAllByName("apply" . $this->request['process'] . "Strategies"),
       ...Process::getAllByName("limit$opp")

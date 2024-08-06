@@ -8,26 +8,28 @@ class BuyStrategy
   private StockMonitor $stock_monitor;
   private array $stocks;
 
-  private int $sid;
-  private int $wait;
+  private array $args;
 
   private Config $config;
 
   private function fetchStocks()
   {
+    $stocks = null;
     do {
-      $stocks = $this->stock_monitor->initFilter(StockMonitor::BUY);
       try {
-        $stocks = $this->stock_monitor->getStocks(StockMonitor::BUY);
+        $stocks = $this->stock_monitor->getStocks($this->args['sid'], StockMonitor::BUY);
       } catch (Exception | Error $e) {
-        $this->stock_monitor->initFilter(StockMonitor::BUY);
+        echo trace($e);
       }
-    } while (!$stocks); 
+
+      if (!$stocks)
+        echo "No Stocks Returned. Retrying...\n";
+    } while (!$stocks);
 
     foreach ($stocks as &$stock)
       $stock['price'] = (int)str_replace(',', '', $stock['price']);
 
-    return array_slice($stocks, 0, $this->config['buy']['number_of_trades']);
+    return array_slice($stocks, 0, (int) $this->args['number_of_trades']);
   }
 
   public function reset()
@@ -38,13 +40,12 @@ class BuyStrategy
 
   public function __construct(array $run_args)
   {
-    $this->sid = $run_args[0];
-    $this->wait = $run_args[1];
+    $this->args = $run_args;
 
     $this->trade_station = new TradeStation('buy');
     $this->config = new Config;
-    
-    $this->stock_monitor = new StockMonitor($this->sid);
+
+    $this->stock_monitor = new StockMonitor($this->args['sid']);
     $this->reset();
   }
 
@@ -54,11 +55,11 @@ class BuyStrategy
     $start = time();
 
     $log_dir = __DIR__ . '/logs/buy/' . (new Ndate)->format();
-    if(!is_dir($log_dir))
+    if (!is_dir($log_dir))
       mkdir($log_dir);
-    foreach($this->stocks as $j => $stock) {
+    foreach ($this->stocks as $j => $stock) {
       $i = 1;
-      while(file_exists($log_dir . '/' . $stock['symbol'] . "-$i.log"))
+      while (file_exists($log_dir . '/' . $stock['symbol'] . "-$i.log"))
         $i++;
 
       $this->stocks[$j]['log'] = $log_dir . '/' . $stock['symbol'] . "-$i.log";
@@ -68,30 +69,37 @@ class BuyStrategy
       foreach ($this->stocks as $i => $stock) {
         $order = $this->trade_station->getOrder($stock['limitbuy_order_id']);
         $status = $order['Status'];
+        echo "Market BUY {$stock['symbol']}: $status\n";
 
-        if ($status == 'FLL' || $status == 'FPR') {
+        if ($status == 'FLL') {
           $stock['price'] = round($order['FilledPrice'], 2);
+          echo "Filled with total price of $" . $stock['price'] * $order['Legs'][0]['QuantityOrdered'] . "\n";
           StockLogger::logStock('Buy', "Filled Market Buy", $stock);
 
-          $args = [];
-          foreach ($stock as $key => $value) {
-            $args[] = $key;
-            $args[] = $value;
-          }
-
-
           $process = new Process("limitSell", $stock['log']);
-          $process->passArgs([...$args, 'limitbuy_order_id', $stock['limitbuy_order_id']]);
-          $process->run(Process::BACKGROUND);
+          $process->passArgs([
+            ...$stock,
+            ...$this->args
+          ], true);
+          if ($process->run(Process::BACKGROUND) === 1)
+            echo 'Started Sequence For ' . $stock['symbol'] . "\n";
           unset($this->stocks[$i]);
-        } else if ($status == 'ACK') {
+        } else if ($status == 'ACK' || $status == 'FPR') {
           // silence
+        } else if ($status == 'REJ') {
+          echo $order['RejectReason'] . "\n";
+          $this->stocks[$i]['price'] = $this->trade_station->getStockEstimatedPrice($stock['symbol'], 'Market', 'BUY');
+
+          echo "{$stock['symbol']}'s price = {$this->stocks[$i]['price']}\n";
+          try {
+            $this->stocks[$i]['limitbuy_order_id'] = $this->trade_station->placeOrder($stock, 'Market', 'BUY');
+          } catch (InsufficientMoney $e) {
+            StockLogger::logStock('buy', "Insufficient Money Limit BUY", $stock);
+          }
         } else {
           $failed[$stock['limitbuy_order_id']] = $stock;
           unset($this->stocks[$i]);
         }
-
-        echo "Limit BUY {$stock['symbol']}: $status\n";
       }
       echo "\n";
 
@@ -100,24 +108,28 @@ class BuyStrategy
 
     if (count($failed)) {
       foreach ($failed as $order_id => $order) {
-        var_dump($this->trade_station->cancel($order_id));
+        // var_dump($this->trade_station->cancel($order_id));
         StockLogger::logStock('Buy', 'Cancelled Limit BUY', $order);
       }
     }
   }
-  
+
 
   private function removeStocks($failures)
   {
     $this->stocks = array_filter($this->stocks, function ($stock) use ($failures) {
       return !in_array($stock['symbol'], $failures);
     });
+
+    $this->args['number_of_trades'] = count($this->stocks);
   }
 
   public function run()
   {
-    echo "Trading After: {$this->wait} mins \n";
-    sleep(max($this->wait * 60, 1));
+    echo "Trading After: {$this->args['trade_after']} mins \n";
+    sleep(max($this->args['trade_after'] * 60, 1));
+
+    echo "Fetching Stocks...";
     $this->stocks = $this->fetchStocks();
     $this->removeStocks($this->config['globals']['excluded']);
 
@@ -127,9 +139,35 @@ class BuyStrategy
     //////////////////////////// Buying stocks and market init
     print_r("\nStage 0: Market Limit BUY all stocks\n");
 
+    // Offensive Buy
+    $buyers = [];
     foreach ($this->stocks as $i => $stock) {
-      $this->stocks[$i]['limitbuy_order_id'] = $this->trade_station->placeOrder($stock, 'Market', 'BUY');
+      $stock['price'] = $this->trade_station->getStockEstimatedPrice($stock['symbol'], 'Market', 'BUY');
+
+      $buyer = new Trade($this->trade_station, $stock['symbol'], "Market", "BUY");
+      $buyer->setBudget($budget_per_trade);
     }
+
+    $this->stocks = [];
+    // Keep buying till you no longer have money to buy more
+    while (count($buyers)) {
+      foreach ($buyers as $i => $buyer) {
+        if (!$buyer->buy()) { // Couldn't buy means full budget has been spent
+          $this->stocks[] = $buyer->getStock();
+          unset($buyers[$i]);
+        }
+      }
+
+      $filled_count = 0;
+      while($filled_count != count($buyers)) {
+        foreach($buyers as $buyer) {
+          if($buyer->isFilled())
+            $filled_count += 1;
+        }
+      }
+    }
+
+    echo "Remaining Buying Power: " . $this->trade_station->getBuyingPower() . "\n";
 
     echo "Confirming Limit BUY...\n";
 
@@ -137,5 +175,8 @@ class BuyStrategy
   }
 }
 
-$strategy = new BuyStrategy($argv);
+class OrderDoesNotExist extends Exception
+{}
+
+$strategy = new BuyStrategy(json_decode($argv[1], true));
 $strategy->run();

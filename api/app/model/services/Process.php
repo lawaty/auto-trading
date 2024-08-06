@@ -101,9 +101,11 @@ class Process
         $this->log_path = $path;
     }
 
-    public function passArgs(array $args): void
+    public function passArgs(array $args, bool $is_json = false): void
     {
-        $this->args = $args;
+        if($is_json)
+            $this->args = [json_encode($args)];
+        else $this->args = $args;
     }
 
     public function run(int $run_type = Process::FOREGROUND)

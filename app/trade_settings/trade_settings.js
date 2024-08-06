@@ -1,6 +1,12 @@
 $(document).on('trade_settings-loaded', () => {
   Store.loadComponent('widgets/sidebar', "#sidebar")
 
+  $("[add-run]").on('click', function () {
+    let which = $(this).attr('add-run')
+    let count = $(this).before().find('.run-container').length
+    addRun(which, count + 1)
+  })
+
   AJAX.ajax({
     url: config.API + "/params/buy",
     type: "GET",
@@ -11,33 +17,9 @@ $(document).on('trade_settings-loaded', () => {
       200: (xhr) => {
         for (let i in xhr.parsed.runs) {
           let run = xhr.parsed.runs[i]
-          $("#buy-runs").append(`
-            <h4>Run ${i}</h4>
-            <div class="form-group">
-              <label for="buy-${i}-number_of_trades">Number of Trades</label>
-              <input class="form-control" value="${run.number_of_trades}" id="buy-${i}-number_of_trades" name="number_of_trades" placeholder="e.g. 10">
-            </div>
-
-            <div class="form-group">
-              <label for="start_after">Start After (in mins)</label>
-              <input value="${number.trade_after}" class="form-control" id="start_after" name="trade_after" placeholder="e.g. 10">
-            </div>
-
-            <label>Buy Sequences</label>
-            <ul id="buy-${i}-sequences">
-              <!-- Dynamically Loaded -->
-            </ul>
-
-            <div class="form-group">
-              <label for="buy_${i}_stop_loss">Stop Loss Percent</label>
-              <input value="${run.stop_loss_percent}" class="form-control" id="buy_${i}_stop_loss" name="stop_loss_percent" placeholder="e.g. 10">
-            </div>
-          `)
-
-          for (let sequence of run.sequences)
-            addSequence('buy-' + i + '-sequences', sequence.percent, sequence.wait_time)
+          addRun("buy", i, run)
         }
-        
+
         if (xhr.parsed.pid) {
           $("#buy-start").hide()
           $("#buy-stop").show()
@@ -46,44 +28,51 @@ $(document).on('trade_settings-loaded', () => {
     }
   })
 
-  // AJAX.ajax({
-  //   url: config.API + "/params/short",
-  //   type: "GET",
-  //   beforeSend: (xhr) => {
-  //     xhr.setRequestHeader('Authorization', 'Bearer ' + token)
-  //   },
-  //   complete: {
-  //     200: (xhr) => {
-  //       $("#sell_settings [name=trade_after]").val(xhr.parsed.trade_after)
-  //       $("#sell_settings [name=stop_loss_percent]").val(xhr.parsed.stop_loss_percent)
-  //       $("#sell_settings [name=number_of_trades]").val(xhr.parsed.number_of_trades)
+  AJAX.ajax({
+    url: config.API + "/params/short",
+    type: "GET",
+    beforeSend: (xhr) => {
+      xhr.setRequestHeader('Authorization', 'Bearer ' + token)
+    },
+    complete: {
+      200: (xhr) => {
+        for (let i in xhr.parsed.runs) {
+          let run = xhr.parsed.runs[i]
+          addRun("short", i, run)
+        }
 
-  //       for (let sequence of xhr.parsed.sequences)
-  //         addSequence('sell', sequence.percent, sequence.wait_time)
-
-
-  //       if (xhr.parsed.pid) {
-  //         $("#sell-start").hide()
-  //         $("#sell-stop").show()
-  //       }
-  //     }
-  //   }
-  // })
+        if (xhr.parsed.pid) {
+          $("#short-start").hide()
+          $("#short-stop").show()
+        }
+      }
+    }
+  })
 
   window.buy_settings = new Form($("#buy_settings"))
 
   window.buy_settings.payload = function () {
-    let form_data = new FormData(buy_settings.form[0])
+    let runs = []
+    $("#buy-runs .run-container").each(function (i, container) {
+      let run = {
+        number_of_trades: $(container).find('[name=number_of_trades]').val(),
+        trade_after: $(container).find('[name=trade_after]').val(),
+        stop_loss_percent: $(container).find('[name=stop_loss_percent]').val(),
+        sequences: [],
+        sid: $(container).find('[name=sid]').val()
+      }
 
-    let percent_csv = form_data.getAll('percent[]').join(',');
-    form_data.delete('percent[]');
-    form_data.append('percent', percent_csv);
+      $(container).find('ul li').each(function (i, li) {
+        run.sequences.push({
+          wait_time: $(li).find("[name='wait_time[]']").val(),
+          percent: $(li).find("[name='percent[]']").val(),
+        })
+      })
 
-    let wait_time_csv = form_data.getAll('wait_time[]').join(',');
-    form_data.delete('wait_time[]');
-    form_data.append('wait_time', wait_time_csv);
+      runs.push(run)
+    })
 
-    return form_data
+    return { 'runs': runs }
   }
 
   window.buy_settings.setCallback({
@@ -95,23 +84,33 @@ $(document).on('trade_settings-loaded', () => {
     }
   })
 
-  window.sell_settings = new Form($("#sell_settings"))
+  window.short_settings = new Form($("#short_settings"))
 
-  window.sell_settings.payload = function () {
-    let form_data = new FormData(sell_settings.form[0])
+  window.short_settings.payload = function () {
+    let runs = []
+    $("#short-runs .run-container").each(function (i, container) {
+      let run = {
+        number_of_trades: $(container).find('[name=number_of_trades]').val(),
+        trade_after: $(container).find('[name=trade_after]').val(),
+        stop_loss_percent: $(container).find('[name=stop_loss_percent]').val(),
+        sequences: [],
+        sid: $(container).find('[name=sid]').val()
+      }
 
-    let percent_csv = form_data.getAll('percent[]').join(',');
-    form_data.delete('percent[]');
-    form_data.append('percent', percent_csv);
+      $(container).find('ul li').each(function (i, li) {
+        run.sequences.push({
+          wait_time: $(li).find("[name='wait_time[]']").val(),
+          percent: $(li).find("[name='percent[]']").val(),
+        })
+      })
 
-    let wait_time_csv = form_data.getAll('wait_time[]').join(',');
-    form_data.delete('wait_time[]');
-    form_data.append('wait_time', wait_time_csv);
+      runs.push(run)
+    })
 
-    return form_data
+    return { 'runs': runs }
   }
 
-  window.sell_settings.setCallback({
+  window.short_settings.setCallback({
     200: (xhr) => {
       Swal.fire({
         icon: "success",
@@ -121,14 +120,88 @@ $(document).on('trade_settings-loaded', () => {
   })
 })
 
-function addSequence(which, percent = '', wait_time = '') {
-  $("#" + which).append(`
+function addRun(type, i, run = {
+  number_of_trades: "",
+  trade_after: "",
+  stop_loss_percent: "",
+  sequences: [{
+    percent: "",
+    wait_time: ""
+  }],
+  sid: -1
+}) {
+
+  if (window.filters === undefined) {
+    $(document).on('filters-loaded', () => addRun(type, i, run))
+    return;
+  }
+
+  let filters_options = ``;
+  for (let filter of filters)
+    filters_options += `<option value="${filter.sid}" ${filter.sid == run.sid ? 'selected' : ''}>${filter.name}</option>`
+
+  $("#" + type + "-runs").append(`
+    <div class="run-container">
+      <div class="form-row justify-content-between align-items-center">
+        <h4>Run ${parseInt(i) + 1}</h4>
+        <i class="bi bi-trash text-danger" onclick="deleteRun(this)"></i>
+      </div>
+      <div class="form-row">
+        <div class="form-group  col">
+          <label for="${type}-${i}-number_of_trades">Number of Trades</label>
+          <input class="form-control" value="${run.number_of_trades}" id="${type}-${i}-number_of_trades" name="number_of_trades" placeholder="e.g. 10">
+        </div>
+
+        <div class="form-group col">
+          <label for="start_after">Start After (in mins)</label>
+          <input value="${run.trade_after}" class="form-control" id="start_after" name="trade_after" placeholder="e.g. 10">
+        </div>
+
+        <div class="form-group col">
+          <label for="${type}_${i}_stop_loss">Stop Loss Percent</label>
+          <input value="${run.stop_loss_percent}" class="form-control" id="b${type}${i}_stop_loss" name="stop_loss_percent" placeholder="e.g. 10">
+        </div>
+      </div>
+
+      <h6>Sequences</h6>
+      <ul id="${type}-${i}-sequences">
+        <!-- Dynamically Loaded -->
+      </ul>
+
+      <h6>Filter</h6>
+      <select class="form-control" name="sid">
+        ${filters_options}
+      </select>
+    </div>
+  `)
+  for (let sequence of run.sequences)
+    addSequence(type + '-' + i + '-sequences', sequence.percent, sequence.wait_time)
+
+  if (!run.sequences.length)
+    addSequence(type + '-' + i + '-sequences', 0, 0)
+}
+
+function deleteRun(i) {
+  // if($(i).closest('ul').find('.run-container').length == 1) {
+  //   Swal.fire({
+  //     icon: "warning",
+  //     title: "Impossible",
+  //     text: "At least one run must be there"
+  //   })
+  //   return ;
+  // }
+
+  $(i).closest('.run-container').remove()
+}
+
+function addSequence(type, percent = '', wait_time = '') {
+  $("#" + type).append(`
 <li>
   <div class="form-row">
     <div class="mx-2" style="width: fit-content">
       <p style="color:#fff;">#</p>
-      <i onclick="addSequence('${which}')" class="bi bi-plus-circle mr-1 text-success"></i>
-      <i onclick="$(this).closest('li').remove()" class="bi bi-trash text-danger"></i>
+      <i onclick="addSequence('${type}')" class="bi bi-plus-circle mr-1 text-success"></i>
+      <i onclick="removeStage(this)" class="bi bi-trash text-danger"></i>
     </div>
     <div class="col form-group">
       <label for="key">Wait Time</label>
@@ -140,6 +213,20 @@ function addSequence(which, percent = '', wait_time = '') {
     </div>
   </div>
 </li>`)
+}
+
+function removeStage(i) {
+  if ($(i).closest('ul').find('li').length == 1) {
+    Swal.fire({
+      icon: 'warning',
+      title: "Warning",
+      text: "Each run must have at least one stage"
+    })
+
+    return;
+  }
+
+  $(i).closest('li').remove()
 }
 
 function runTrader(btn, type) {

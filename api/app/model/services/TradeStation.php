@@ -1,4 +1,7 @@
 <?php
+
+const BUYING_TOLERANCE = 0.98;
+
 class TradeStation
 {
     private string $api_key = 'lMujDTbmHrqZ5a7EkPSyskivY9doHu54';
@@ -12,6 +15,7 @@ class TradeStation
     private $params;
     private string $which;
     private Ndate $refreshed_at;
+    private int $per_stock_power;
 
     public function __construct($which)
     {
@@ -60,9 +64,15 @@ class TradeStation
         if (!isset($headers['Authorization']) && isset($this->access_token))
             $headers['Authorization'] = "Bearer " . $this->access_token;
 
+        if (!str_contains($url, $this->api_base))
+            $url = $this->api_base . "/$url";
+
         $curl = new ArteCurl($url);
         $curl->setHeaders($headers);
-        return $curl->send($type, $data)->getBody();
+        $response = $curl->send($type, $data)->getBody();
+        if (isJson($response))
+            return json_decode($response, true);
+        else return $response;
     }
 
     public function refreshSettings()
@@ -97,6 +107,7 @@ class TradeStation
         $curl->setHeaders([
             'Content-Type:application/x-www-form-urlencoded'
         ]);
+
         $response = $curl->send("POST", [
             'grant_type' => "authorization_code",
             'client_id' => $this->api_key,
@@ -121,22 +132,41 @@ class TradeStation
             'client_secret' => $this->api_secret,
             'refresh_token' => $this->refresh_token,
         ];
-        $
-        $this->access_token = $this->curl($refresh_url, "POST", $data, $header);
+
+        $curl = new ArteCurl($refresh_url);
+        $curl->setHeaders($header);
+        $response = $curl->send("POST", $data)->getBody();
+        $this->access_token = json_decode($response)->access_token;
     }
 
     public function getBalance()
     {
         $account_id = $this->account_id;
         $balance_url = $this->api_base . "/brokerage/accounts/$account_id/balances";
-        $headers = [
-            'Authorization' => "Bearer " . $this->access_token
-        ];
-        $response = $this->curl($balance_url, "GET", [], $headers);
+        $response = $this->curl($balance_url, "GET");
 
-        if ($response['Error'] && str_contains($response['Message'], "Invalid Account ID"))
+        $error = $respose['Errors'] ?? $response['Error'] ?? null;
+        if ($error && str_contains($response['Message'], "Invalid Account ID"))
             throw new InvalidAccountID();
-        return $response['Balances'][0]['BuyingPower'];
+
+        return $response['Balances'][0]['CashBalance'];
+    }
+
+    public function getBuyingPower()
+    {
+        $account_id = $this->account_id;
+        $balance_url = $this->api_base . "/brokerage/accounts/$account_id/balances";
+        $response = $this->curl($balance_url, "GET");
+
+        $error = $response['Errors'] ?? $response['Error'] ?? null;
+        if ($error && str_contains($response['Message'], "Invalid Account ID"))
+            throw new InvalidAccountID();
+
+        $power = $response['Balances'][0]['BuyingPower'];
+        if($power < 0)
+            $power = 0;
+
+        return $power;
     }
 
     public function getAccounts()
@@ -147,14 +177,9 @@ class TradeStation
         return $response;
     }
 
-    public function getPerStockPower()
+    public function getStock(string $symbol): array
     {
-        $ordering_power = $this->params['globals']['money'];
-        if ($this->params['globals']['is_full_power'] == "1")
-            $ordering_power = $this->getBalance();
-        $trades_number = $this->params[$this->which]["number_of_trades"];
-        $per_stock_power = $ordering_power / $trades_number;
-        return $per_stock_power;
+        return $this->curl("marketdata/quotes/$symbol", "GET")['Quotes'][0];
     }
 
     public function getStockEstimatedPrice($stock_symbol, $order_type, $trade_action)
@@ -179,7 +204,9 @@ class TradeStation
 
         $response = $this->curl($execution_url, "POST", $data, $headers);
 
-        if (isset($response['Errors'])) {
+        $error = $respose['Errors'] ?? $response['Error'] ?? null;
+        if ($error) {
+            echo __FUNCTION__ . "\n";
             var_dump("An error has occured");
             var_dump($response);
         } else {
@@ -187,24 +214,17 @@ class TradeStation
         }
     }
 
-    private function getExecutionPrice($order_id)
-    {
-        $account_id = $this->account_id;
-        $execution_url = $this->api_base . "/brokerage/accounts/$account_id/orders";
-        $response = $this->curl($execution_url, 'GET');
-        $execution_price = $response->Orders[0]->Legs->ExecutionPrice;
-        return $execution_price;
-    }
-
-    public function placeOrder($stock, $order_type, $trade_action, $percent = 0): ?int
+    public function placeOrder($stock, $order_type, $trade_action, $quantity = null, $percent = 0): ?int
     {
         $percent += 1;
 
         $account_id = $this->account_id;
         $ordering_url = $this->api_base . "/orderexecution/orders";
-        $per_stock_power = $this->getPerStockPower();
 
-        $stock_quantity = $stock['quantity'] ?? floor($per_stock_power / $stock['price']);
+        $stock_quantity = $stock['quantity'] ?? $quantity;
+        if ($stock_quantity == 0)
+            throw new InsufficientMoney;
+
         $stock_price = round($stock['price'] * $percent, 2);
         $data = [
             "AccountID" => $account_id,
@@ -227,8 +247,11 @@ class TradeStation
         // echo "\n";
         $response = $this->curl($ordering_url, "POST", $data);
 
-        if (isset($response['Errors'])) {
-            print_r($response);
+        $error = $response['Errors'] ?? $response['Error'] ?? null;
+        if ($error) {
+            echo __FUNCTION__ . "\n";
+            prettyPrint($data);
+            prettyPrint($response);
             echo "\n";
             return null;
         }
@@ -251,14 +274,17 @@ class TradeStation
     {
         $account_id = $this->account_id;
         $ordering_url = $this->api_base . "/orderexecution/ordergroups";
-        $per_stock_power = $this->getPerStockPower();
+
         $payload = [
             'Type' => 'OCO',
             'Orders' => []
         ];
 
         foreach ($operations as $i => $operation) {
-            $stock_quantity = $stock['quantity'] ?? floor($per_stock_power / $stock['price']);
+            $stock_quantity = $stock['quantity'] ?? $operations['quantity'];
+
+            if(!isset($operation['percent']))
+                $operation['percent'] = 0;
 
             $operation['percent'] += 1;
 
@@ -270,8 +296,9 @@ class TradeStation
                 "OrderType" => $operation['order_type'],
                 "TradeAction" => $operation['trade_action'],
                 "TimeInForce" => ["Duration" => "DAY"],
-                "Route" => "Intelligent",
+                "Route" => "Intelligent"
             ];
+
             if ($operation['order_type'] == 'StopMarket')
                 $order_data["StopPrice"] = "$price";
             else if ($operation['order_type'] == 'Limit')
@@ -284,8 +311,11 @@ class TradeStation
         $response = $this->curl($ordering_url, "POST", $payload);
         // var_dump($response);
 
-        if (isset($response['Errors'])) {
-            print_r($response);
+        $error = $respose['Errors'] ?? $response['Error'] ?? null;
+        if ($error) {
+            echo __FUNCTION__ . "\n";
+            prettyPrint($payload);
+            prettyPrint($response);
             echo "\n";
             return null;
         }
@@ -314,8 +344,11 @@ class TradeStation
         return array_column($response['Orders'], 'OrderID') ?? null;
     }
 
-    public function editOrder($stock, $order_id, $data)
+    public function editOrder(array $stock, int $order_id, array $data): ?int
     {
+        if(!isset($data['order_type']) || !isset($data['trade_action']))
+            throw new InvalidArguments("Data must have order_type and trade_action parameters");
+
         $put_url = $this->api_base . "/orderexecution/orders/" . $order_id;
         $headers = [
             'Content-Type: application/json'
@@ -344,39 +377,46 @@ class TradeStation
 
         $response = $this->curl($put_url, 'PUT', $data, $headers);
 
+        $error = $respose['Errors'] ?? $response['Error'] ?? null;
+        if ($error){
+            echo __FUNCTION__ . "\n";
+            prettyPrint($data);
+            prettyPrint($response);
+        }
+
         return $response['Orders'][0]['OrderID'] ?? null;
     }
 
-    public function order($stocks, $order_type, $trade_action): array
-    {
-        $account_id = $this->account_id;
-        $ordering_url = $this->api_base . "/orderexecution/orders";
+    // public function order($stocks, $order_type, $trade_action): array
+    // {
+    //     $account_id = $this->account_id;
+    //     $ordering_url = $this->api_base . "/orderexecution/orders";
 
-        $failures = [];
-        foreach ($stocks as $stock) {
-            $per_stock_power = $this->getPerStockPower();
-            $stock_quantity = floor($per_stock_power / $stock['price']);
-            $stock_price = round($stock['price'], 2);
-            $data = [
-                "AccountID" => $account_id,
-                "Symbol" => $stock['symbol'],
-                "Quantity" => "$stock_quantity",
-                "OrderType" => $order_type,
-                "TradeAction" => $trade_action,
-                "TimeInForce" => ["Duration" => "DAY"],
-                "Route" => "Intelligent",
-                "LimitPrice" => "$stock_price"
-            ];
-            $response = $this->curl($ordering_url, "POST", $data);
+    //     $failures = [];
+    //     foreach ($stocks as $stock) {
+    //         $per_stock_power = $this->getPerStockPower();
+    //         $stock_quantity = floor($per_stock_power / $stock['price']);
+    //         $stock_price = round($stock['price'], 2);
+    //         $data = [
+    //             "AccountID" => $account_id,
+    //             "Symbol" => $stock['symbol'],
+    //             "Quantity" => "$stock_quantity",
+    //             "OrderType" => $order_type,
+    //             "TradeAction" => $trade_action,
+    //             "TimeInForce" => ["Duration" => "DAY"],
+    //             "Route" => "Intelligent",
+    //             "LimitPrice" => "$stock_price"
+    //         ];
+    //         $response = $this->curl($ordering_url, "POST", $data);
 
-            $exec_quantity = $this->getExecutedQuantity($response, $stock_price);
-            print_r("Stock Quantity: " . $stock_quantity . "\n");
-            print_r("EXECUTED Stock Quantity: " . $exec_quantity . "\n");
-            if ($exec_quantity != $stock_quantity)
-                $failures[] = $stock['symbol'];
-        }
-        return $failures;
-    }
+    //         $exec_quantity = $this->getExecutedQuantity($response, $stock_price);
+    //         print_r("Stock Quantity: " . $stock_quantity . "\n");
+    //         print_r("EXECUTED Stock Quantity: " . $exec_quantity . "\n");
+    //         if ($exec_quantity != $stock_quantity)
+    //             $failures[] = $stock['symbol'];
+    //     }
+    //     return $failures;
+    // }
 
     public function getOrderStatus(int $order_id)
     {
@@ -445,37 +485,44 @@ class TradeStation
         curl_close($ch);
 
         $response = json_decode($response, true);
-
-        var_dump($response['Message']);
+        var_dump($response);
     }
 
-    public function stopLoss($stocks, $dec_pct, $order_type, $trade_action)
-    {
-        $account_id = $this->account_id;
-        $ordering_url = $this->api_base . "/orderexecution/orders";
-        foreach ($stocks as $stock) {
-            $stop_price = round($stock['price'] * $dec_pct, 2);
+    // public function stopLoss($stocks, $dec_pct, $order_type, $trade_action)
+    // {
+    //     $account_id = $this->account_id;
+    //     $ordering_url = $this->api_base . "/orderexecution/orders";
+    //     foreach ($stocks as $stock) {
+    //         $stop_price = round($stock['price'] * $dec_pct, 2);
 
-            if ($trade_action == 'BUYTOCOVER')
-                $stop_price = ceil($stop_price);
+    //         if ($trade_action == 'BUYTOCOVER')
+    //             $stop_price = ceil($stop_price);
 
-            $per_stock_power = $this->getPerStockPower();
-            $stock_quantity = $stock['quantity'] ?? floor($per_stock_power / $stock['price']);
-            $data = [
-                "AccountID" => $account_id,
-                "Symbol" => $stock['symbol'],
-                "Quantity" => "$stock_quantity",
-                "OrderType" => $order_type,
-                "TradeAction" => $trade_action,
-                "TimeInForce" => ["Duration" => "GTC"],
-                "Route" => "Intelligent",
-                "StopPrice" => "$stop_price",
-            ];
-            $this->curl($ordering_url, "POST", $data);
-        }
-    }
+    //         $per_stock_power = $this->getPerStockPower();
+    //         $stock_quantity = $stock['quantity'] ?? floor($per_stock_power / $stock['price']);
+    //         $data = [
+    //             "AccountID" => $account_id,
+    //             "Symbol" => $stock['symbol'],
+    //             "Quantity" => "$stock_quantity",
+    //             "OrderType" => $order_type,
+    //             "TradeAction" => $trade_action,
+    //             "TimeInForce" => ["Duration" => "GTC"],
+    //             "Route" => "Intelligent",
+    //             "StopPrice" => "$stop_price",
+    //         ];
+    //         $this->curl($ordering_url, "POST", $data);
+    //     }
+    // }
 }
 
 class InvalidAccountID extends Exception
+{
+}
+
+class InsufficientMoney extends Exception
+{
+}
+
+class MissingNumberOfTrades extends Exception
 {
 }

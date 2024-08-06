@@ -4,12 +4,12 @@
   "testing/Shutdown": "testing/Shutdown.php",
   "testing/Yrab": "testing/Yrab.php",
   "testing/login": "testing/login.php",
-  "testing/getFilters": "testing/GetFilters.php",
+  "stockMonitor/getFilters": "GetFilters.php",
   "test": "testing/Test.php",
 
   "params/SetGlobalParams" : "params/SetGlobalParams.php",
   "params/SetBuyParams" : "params/SetBuyParams.php",
-  "params/SetSellParams" : "params/SetSellParams.php",
+  "params/SetShortParams" : "params/SetSellParams.php",
   "params/SetCalanderParams" : "params/SetCalanderParams.php",
   "params": "params/GetAll.php",
   "params/{which}": "params/GetAll.php",
@@ -23,5 +23,9 @@
   "clearOrders": "BulkClearOrders.php",
   "operations/{which}": "StockOperations.php",
   "testStocks/{which}": "testing/TestStocks.php",
-  "{which}/testStockConds": "testing/TestStockMonitorConds.php" 
+  "{which}/testStockConds": "testing/TestStockMonitorConds.php" ,
+
+  "exstocks/Get": "exstocks/Get.php",
+  "exstocks/Add": "exstocks/Add.php",
+  "exstocks/Delete": "exstocks/Delete.php"
 }

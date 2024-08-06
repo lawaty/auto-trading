@@ -4,9 +4,6 @@ const CLOSING_TOLERANCE = 30; // mins
 
 require_once __DIR__ . "../../../autoload.php";
 
-$sequence = new Sequence(array_slice($argv, 1));
-$sequence->run();
-
 class Sequence
 {
   private array $stock;
@@ -17,25 +14,28 @@ class Sequence
   private array $stages;
   private float $danger;
 
-  private function parseArgs($argv)
+  private function parseArgs(array $args)
   {
-    $stock = [];
-    for ($i = 0; $i < count($argv); $i += 2)
-      $stock[$argv[$i]] = $argv[$i + 1];
+    $this->danger = $args['stop_loss_percent'];
+    $this->stages = $args['sequences'];
+    $this->number_of_trades = $args['number_of_trades'];
 
-    return $stock;
+    unset($args['number_of_trades']);
+    unset($args['trade_after']);
+    unset($args['stop_loss_percent']);
+    unset($args['sequences']);
+    unset($args['sid']);
+
+    $this->stock = $args;
   }
 
   public function __construct(array $argv)
   {
-    $this->stock = $this->parseArgs($argv);
+    $this->parseArgs($argv);
 
     $this->config = new Config;
     $this->bell = new Ndate($this->config['globals']['until']);
     $this->trade_station = new TradeStation("short");
-
-    $this->danger = $this->config['short']['stop_loss_percent'];
-    $this->stages = $this->config['short']['sequences'];
   }
 
   public function run(): void
@@ -45,6 +45,7 @@ class Sequence
     foreach ($this->stages as $i => $stage_config) {
       echo "\nStage $i: {$stage_config['percent']} limit\n";
       $this->stock['quantity'] = $this->trade_station->getExecQuantity($this->stock['sellshort_order_id']);
+      echo "Actual Executed Quantity: ". $this->stock['quantity'] . "\n";
 
       if (!isset($this->stock['stoploss_id'])) {
         [$this->stock['stoploss_id'], $this->stock['limitbuy_id']] = $this->trade_station->placeOCO($this->stock, [[
@@ -75,7 +76,7 @@ class Sequence
       $this->stock['quantity'] = $this->trade_station->getExecQuantity($this->stock['sellshort_order_id']);
 
       StockLogger::logStock(
-        "Sell",
+        "Short",
         "Cancel OCO",
         [
           ...$this->stock,
@@ -90,7 +91,7 @@ class Sequence
       echo "Failed to reach any of the limits, Buying anyways";
     } else {
       StockLogger::logStock(
-        "Sell",
+        "Short",
         "OCO Limit " . $is_filled[0],
         [
           ...$this->stock,
@@ -100,7 +101,7 @@ class Sequence
       );
 
       StockLogger::logStock(
-        "Sell",
+        "Short",
         "StopLoss " . $is_filled[1],
         [
           ...$this->stock,
@@ -140,3 +141,6 @@ class Sequence
     return false;
   }
 }
+
+$sequence = new Sequence(json_decode($argv[1], true));
+$sequence->run();
