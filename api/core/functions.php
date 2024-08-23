@@ -7,6 +7,15 @@ if (!function_exists('str_contains')) {
   }
 }
 
+function countdown(string $event, int $secs) {
+             $minutes = floor($secs / 60);
+        $seconds = $secs % 60;
+  echo "Waiting $minutes minutes and $seconds seconds to trigger the event '$event'\n";
+	sleep($secs);
+
+    echo "\nEvent '$event' triggered.\n";
+}
+
 
 function isJson($payload)
 {
@@ -101,6 +110,7 @@ function prettyPrint(array $arr)
   echo '<pre>';
   print_r($arr);
   echo '</pre>';
+  echo "\n\n"; /** @todo move this line from core */
 }
 
 function copyDirectory($source, $destination)

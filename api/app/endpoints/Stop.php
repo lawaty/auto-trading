@@ -17,19 +17,13 @@ class Stop extends Authenticated
     }
 
     try {
-      $opp = $this->request['process'] == 'Buy' ? 'Short' : 'Buy';
       $processes = [
         ...Process::getAllByName("apply" . $this->request['process'] . "Strategies"),
-        ...Process::getAllByName($this->request['process'] . "Trade"),
-        ...Process::getAllByName("limit$opp")
+        ...Process::getAllByName($this->request['process'] . "Trade")
       ];
 
       foreach ($processes as $process)
         $process->shutdown();
-
-      $json = json_decode(file_get_contents(JSONS_DIR . "/$opp.json"),true);
-      $json['pid'] = "";
-      file_put_contents(JSONS_DIR . "/$opp.json", $json);
       
       return new Response;
     } catch (Exception | Error $e) {

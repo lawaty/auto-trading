@@ -101,6 +101,6 @@ class Ndate extends DateTime
   }
 
   public function after(Ndate $date) {
-    return $this->minutesUntil($date) < 0;
+    return $this->minutesUntil($date) <= 0;
   }
 }

@@ -10,11 +10,12 @@
         <div class="d-flex align-items-center">
           <h2 class="my-3">Buy Processes</h2>
           <button id="buy-start" class="btn btn-success h-50 ml-2" onclick="runTrader(this, 'buy')">Run</button>
-          <button id="buy-stop" class="btn btn-danger h-50 ml-2" style="display: none;" onclick="stopTrader(this, 'buy')">Stop</button>
+          <button id="buy-stop" class="btn btn-danger h-50 ml-2" style="display: none;"
+            onclick="stopTrader(this, 'buy')">Stop</button>
         </div>
         <form class="py-2 px-4" id="buy_settings" endpoint="params/SetBuyParams" type="POST">
           <ul id="buy-runs">
-            
+
           </ul>
           <button type="button" add-run="buy" class="btn btn-success my-3">Add Run</button>
 
@@ -26,17 +27,56 @@
         <div class="d-flex align-items-center">
           <h2 class="my-3">Short Processes</h2>
           <button id="short-start" class="btn btn-success h-50 ml-2" onclick="runTrader(this, 'short')">Run</button>
-          <button id="short-stop" class="btn btn-danger h-50 ml-2" style="display: none;" onclick="stopTrader(this, 'short')">Stop</button>
+          <button id="short-stop" class="btn btn-danger h-50 ml-2" style="display: none;"
+            onclick="stopTrader(this, 'short')">Stop</button>
         </div>
         <form class="py-2 px-4" id="short_settings" endpoint="params/SetShortParams" type="POST">
           <ul id="short-runs">
-            
+
           </ul>
           <button type="button" add-run="short" class="btn btn-success my-3">Add Run</button>
 
           <button type="button" submit="short_settings" class="btn btn-primary my-3">Submit</button>
         </form>
       </section>
+
+      <section class="mt-2 mb-4">
+        <div class="d-flex align-items-center">
+          <h2 class="my-3">Loss Management</h2>
+        </div>
+        <form class="py-2 px-4" id="loss-settings" endpoint="params/SetLossSettings" type="POST">
+          <div class="run-container" id="buy-loss-run">
+            <div class="form-row">
+              <h3>Buy Sequences</h3>
+            </div>
+
+            <ul id="buy-loss-sequences">
+              <!-- Dynamically Loaded -->
+            </ul>
+
+            <h6>Filter</h6>
+            <select class="form-control" name="sid">
+
+            </select>
+          </div>
+          <div class="run-container" id="short-loss-run">
+            <div class="form-row">
+              <h3>Short Sequences</h3>
+            </div>
+
+            <ul id="short-loss-sequences">
+              <!-- Dynamically Loaded -->
+            </ul>
+
+            <h6>Filter</h6>
+            <select class="form-control" name="sid">
+
+            </select>
+          </div>
+          <button type="button" submit="loss-settings" class="btn btn-primary my-3">Submit</button>
+        </form>
+      </section>
+    </div>
     </div>
   </div>
 </div>

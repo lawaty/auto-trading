@@ -2,6 +2,10 @@
 
 class Sequence
 {
+    const FILLED = 1;
+    const STOPLOSS = 2;
+    const TIMEOUT = 3;
+
     private string $which;
     private array $stock;
     private Config $config;
@@ -11,14 +15,12 @@ class Sequence
     private array $stages;
     private float $danger;
     private string $close_position;
+    private int $status = -1;
 
     private function parseArgs(array $args): void
     {
         $this->danger = $args['stop_loss_percent'];
         $this->stages = $args['sequences'];
-        $this->number_of_trades = $args['number_of_trades'];
-
-        unset($args['number_of_trades']);
         unset($args['trade_after']);
         unset($args['stop_loss_percent']);
         unset($args['sequences']);
@@ -30,7 +32,7 @@ class Sequence
     public function __construct(array $argv, string $which)
     {
         $this->which = $which;
-        if($which == 'buy')
+        if ($which == 'buy')
             $this->close_position = "SELL";
         else
             $this->close_position = "BUYTOCOVER";
@@ -93,12 +95,13 @@ class Sequence
             $this->trade_station->cancel($this->stock['stop_id']);
             $this->trade_station->placeOrder($this->stock, 'Market', $this->close_position);
             echo "Failed to reach any of the limits, Closing positions anyways\n";
+            $this->status = self::TIMEOUT;
         } else {
             echo "FilledPrice: " . $is_filled[2] . "\n";
 
             StockLogger::logStock(
                 ucfirst($this->which),
-                "OCO Limit " . $is_filled[0],
+                "Limit " . $is_filled[0],
                 [
                     ...$this->stock,
                     'OrderID' => -1,
@@ -115,9 +118,9 @@ class Sequence
                     'price' => '-'
                 ]
             );
-        }
 
-        echo "Quitting, Bye!";
+            $this->status = $is_filled[0] == 'FLL' ? self::FILLED : self::STOPLOSS;
+        }
     }
 
     private function aboutToClose()
@@ -131,20 +134,48 @@ class Sequence
         $start = time();
         while (time() - $start < $secs) {
             $limit_order = $this->trade_station->getOrder($this->stock['limit_id']);
+            $stop_order = $this->trade_station->getOrder($this->stock['stop_id']);
             $limit_status = $limit_order['Status'];
-            $stop_status = $this->trade_station->getOrderStatus($this->stock['stop_id']);
+            $stop_status = $stop_order['Status'];
 
             echo "Limit: $limit_status \n";
             echo "StopLoss: $stop_status \n";
 
-            if ($limit_status == 'FLL' || $limit_status == 'REJ' || $limit_status == 'FPR' || $stop_status == 'FLL' || $stop_status == 'REJ')
+            if ($stop_status == 'REJ')
+                echo "Stoploss rejected because: {$stop_order['RejectReason']}\n";
+
+            /**
+             * @todo handle limit_order rejection
+             */
+
+            if ($limit_status == 'FLL' || $stop_status == 'FLL')
                 return [$limit_status, $stop_status, $limit_order['FilledPrice'] ?? -1];
 
-            if ($this->aboutToClose())
+            if ($limit_status != 'ACK') {
+                echo "Weird Limit Order Status. Here is the order\n";
+                prettyPrint($limit_order);
+            }
+
+            if ($stop_status != 'ACK') {
+                echo "Weird Stoploss Order Status. Here is the order\n";
+                prettyPrint($stop_order);
+            }
+
+            if ($this->aboutToClose() || $limit_status == 'OUT' && $stop_status == 'OUT')
                 return false;
 
-            sleep(60 * 2);
+            sleep(30);
         }
         return false;
     }
+
+    public function getStatus(): int
+    {
+        return $this->status;
+    }
+
+    public function getStock(): array
+    {
+        return $this->stock;
+    }   
 }

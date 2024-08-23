@@ -2,6 +2,7 @@
 
 require_once __DIR__ . "../../../autoload.php";
 
+const MIN_WAIT = 5; // secs
 const INIT_TIME = 0;
 $initiator = null;
 

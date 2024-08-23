@@ -23,10 +23,17 @@ class GetAll extends Endpoint
 
     if (!isset($this->request['which']))
       return new Response([...$all_params, 'balance' => $balance]);
-    else
+    else {
+      $process = ucfirst($this->request['which']);
+      /**
+       * @var array<Process>
+       */
+      $processes = Process::getAllByName("apply{$process}Strategies");
+      $pid = count($processes) ? $processes[0]->getPID() : '';
       return new Response([
         'runs' => $all_params[$this->request['which']],
-        'pid' => json_decode(file_get_contents(JSONS_DIR . '/' . ucfirst($this->request['which']) . '.json'), true)['pid']
+        'pid' => $pid
       ]);
+    }
   }
 }

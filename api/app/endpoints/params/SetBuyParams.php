@@ -10,6 +10,7 @@ class SetBuyParams extends Endpoint
         $this->init([
             'runs' => [false, [
                 'number_of_trades' => [true, Regex::INT],
+                'buying_power_percent' => [true, MyRegex::FLOAT],
                 'trade_after' => [true, Regex::INT],
                 'stop_loss_percent' => [true, Regex::ANY],
                 'sequences' => [true, [

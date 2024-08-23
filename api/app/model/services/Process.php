@@ -22,7 +22,22 @@ class Process
 
     public function log(string $something)
     {
-        fwrite($this->getLogger(), "$something — at " . ((new Ndate)->format(Ndate::DATE_TIME))) . "\n\n";
+        if (strpos($something, "\r") !== false) {
+            $lines = explode("\r", $something);
+            $something = end($lines); // Get the last part after the last \r
+            $this->truncateLastLine();
+        }
+
+        fwrite($this->getLogger(), "$something — at " . ((new Ndate)->format(Ndate::DATE_TIME)) . "\n");
+    }
+
+    private function truncateLastLine()
+    {
+        // Read current contents and remove the last line
+        $contents = file_get_contents($this->log_path);
+        $lines = explode("\n", rtrim($contents, "\n"));
+        array_pop($lines); // Remove the last line
+        file_put_contents($this->log_path, implode("\n", $lines) . "\n");
     }
 
     private static function init()
@@ -48,7 +63,7 @@ class Process
         $this->getLogger();
     }
 
-    public static function getProcess(int $pid): Process
+    public static function getProcess(int $pid): ?Process
     {
         exec("ps -p $pid -o cmd=", $output, $returnVar);
 
@@ -59,9 +74,8 @@ class Process
             $process = new self($process_name);
             $process->pid = $pid;
             return $process;
-        } else {
-            throw new PIDNotFound($pid);
         }
+        return null;
     }
 
     public static function getAllByName(string $name): array
@@ -103,7 +117,7 @@ class Process
 
     public function passArgs(array $args, bool $is_json = false): void
     {
-        if($is_json)
+        if ($is_json)
             $this->args = [json_encode($args)];
         else $this->args = $args;
     }
@@ -154,7 +168,6 @@ class Process
         }
     }
 
-
     private function kill()
     {
         $process_name = $this->process_name;
@@ -167,7 +180,7 @@ class Process
                 exec("kill -9 $pid");
             } else {
                 $this->log("Please put a valid operating system type in the env file");
-                echo("Please put a valid operating system type in the env file\n");
+                echo ("Please put a valid operating system type in the env file\n");
                 return 0;
             }
             $this->log("Process $process_name with PID $pid terminated at .\n");
@@ -206,11 +219,11 @@ class Process
                     $this->pid = (int) $pid;
                     return 1;
                 } else {
-                    echo("Error: PID not found.\n");
+                    echo ("Error: PID not found.\n");
                     throw new PIDNotFound($pid);
                 }
             } else {
-                echo("Error executing process.\n");
+                echo ("Error executing process.\n");
                 throw new ExcutionError($process_name);
             }
         } else if ($_ENV['OS'] == 'LINUX') {
@@ -224,16 +237,17 @@ class Process
 
             if (!empty($pid) && is_numeric($pid)) {
                 $this->pid = $pid;
-                echo("Process started in the background with PID: $pid.\n");
+                echo ("Process {$this->process_name} started in the background with PID: $pid. Logging at {$this->log_path}\n");
                 return 1;
             } else {
-                echo("Error: PID not found.\n");
+                echo ("Error: PID not found.\n");
                 return 0;
             }
         } else {
-            echo("Please put a valid operating system type in the env file\n");
+            echo ("Please put a valid operating system type in the env file\n");
         }
     }
+
     public function getState()
     {
         $process_name = $this->process_name;
@@ -241,14 +255,14 @@ class Process
 
         if ($pid) {
             if (static::isProcessRunning($pid)) {
-                echo("Process with name $process_name and PID $pid is running.\n");
+                echo ("Process with name $process_name and PID $pid is running.\n");
                 return 1;
             } else {
-                echo("Process with name $process_name and PID $pid is not running.\n");
+                echo ("Process with name $process_name and PID $pid is not running.\n");
                 return 0;
             }
         } else {
-            echo("Process not found.\n");
+            echo ("Process not found.\n");
             throw new ProcessNotFound($process_name);
         }
     }

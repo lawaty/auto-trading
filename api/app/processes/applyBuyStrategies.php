@@ -2,19 +2,19 @@
 
 require_once __DIR__ . "../../../autoload.php";
 
-const INIT_TIME = 0;
+const MIN_WAIT = 5; // secs
+const INIT_TIME = 0; // secs
 $initiator = null;
 
 while (true) {
   if (!isset($initiator)) {
-    echo "Waiting " . INIT_TIME . " minutes before fetching market status\n";
-    sleep(INIT_TIME  * 60);
+    countdown("Fetching market status", INIT_TIME * 60);
     $initiator = new Initiator('buy');
   }
 
   try {
     $initiator->refresh();
-
+    
     if ($initiator->marketOpen()) {
       try {
         $initiator->prepare();

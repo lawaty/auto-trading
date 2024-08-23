@@ -4,7 +4,7 @@ require_once __DIR__ . "../../../autoload.php";
 
 function restart()
 {
-  $new_process = new Process("updateMarketTiming");
+  $new_process = new Process("updateMarketTiming", LOG_DIR . '/market-timing-' . (new Ndate)->format(Ndate::DATE) . '.log');
   if ($new_process->run(Process::BACKGROUND)) {
     exit;
   }
@@ -50,8 +50,14 @@ while (true) {
     }
 
     $all_params = json_decode(file_get_contents(JSONS_DIR . '/params.json'), true);
+
+    if ((new Ndate($all_params['globals']['until']))->format(Ndate::DATE_TIME) == $open_time->format(Ndate::DATE_TIME) && (new Ndate)->after($open_time))
+      $status = 'Open';
+
     $all_params['globals']['status'] = $status;
+    $all_params['globals']['open_time'] = $open_time->format(Ndate::DATE_TIME);
     $all_params['globals']['until'] = $event_at->format(Ndate::DATE_TIME);
+    echo "Status: $status\nOpen At: {$open_time->format(Ndate::DATE_TIME)}\nNext Event: {$event_at->format(Ndate::DATE_TIME)}\n";
     file_put_contents(JSONS_DIR . '/params.json', json_encode($all_params));
 
     $restart_at = (new Ndate('01:00:00'))->addDays(1);
@@ -61,16 +67,15 @@ while (true) {
     echo "Status: $status\tNext bell rings in $till_event mins \n";
     echo "Market Timing is Updated — at " . $now->format(Ndate::DATE_TIME) . "\n";
 
-    $wait_time = min($max_wait, ($till_event + 1));
+    $wait_time = min($max_wait, ($till_event));
 
     echo "Waiting $wait_time mins till next update.\n\n";
-    sleep($wait_time * 60); // Convert to seconds for sleep
+    sleep($wait_time * 60 + 1); // Convert to seconds for sleep
 
     if ((new Ndate())->after($restart_at)) {
       restart();
     }
   } catch (Exception | Error $e) {
     echo (new Ndate)->format(Ndate::DATE_TIME) . ": " . trace($e) . "\n";
-    file_put_contents(__DIR__ . '/logs/updateMarketTiming.err', (new Ndate)->format(Ndate::DATE_TIME) . ": " . -trace($e) . "\n", FILE_APPEND);
   }
 }

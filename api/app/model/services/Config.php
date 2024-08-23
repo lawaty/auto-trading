@@ -41,4 +41,9 @@ class Config implements ArrayAccess
   {
     unset($this->config[$offset]);
   }
+
+  public function toArray(): array
+  {
+    return $this->config;
+  }
 }

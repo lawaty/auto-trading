@@ -1,0 +1,154 @@
+{
+    "runs": [
+        {
+            "number_of_trades": "4",
+            "buying_power_percent": "0.50",
+            "trade_after": "5",
+            "stop_loss_percent": "0.035",
+            "sequences": [
+                {
+                    "wait_time": "5",
+                    "percent": "-0.0099"
+                },
+                {
+                    "wait_time": "5",
+                    "percent": "-0.007"
+                },
+                {
+                    "wait_time": "20",
+                    "percent": "-0.005"
+                },
+                {
+                    "wait_time": "30",
+                    "percent": "-0.002"
+                }
+            ],
+            "sid": "86299"
+        },
+        {
+            "number_of_trades": "4",
+            "buying_power_percent": "0.50",
+            "trade_after": "70",
+            "stop_loss_percent": "0.035",
+            "sequences": [
+                {
+                    "wait_time": "5",
+                    "percent": "-0.005"
+                },
+                {
+                    "wait_time": "5",
+                    "percent": "-0.003"
+                },
+                {
+                    "wait_time": "5",
+                    "percent": "-0.0015"
+                },
+                {
+                    "wait_time": "5",
+                    "percent": "-0.0010"
+                }
+            ],
+            "sid": "86299"
+        },
+        {
+            "number_of_trades": "4",
+            "buying_power_percent": "0.50",
+            "trade_after": "95",
+            "stop_loss_percent": "0.035",
+            "sequences": [
+                {
+                    "wait_time": "5",
+                    "percent": "-0.0099"
+                },
+                {
+                    "wait_time": "5",
+                    "percent": "-0.0070"
+                },
+                {
+                    "wait_time": "20",
+                    "percent": "-0.0050"
+                },
+                {
+                    "wait_time": "30",
+                    "percent": "-0.0020"
+                }
+            ],
+            "sid": "86906"
+        },
+        {
+            "number_of_trades": "4",
+            "buying_power_percent": "0.50",
+            "trade_after": "160",
+            "stop_loss_percent": "0.035",
+            "sequences": [
+                {
+                    "wait_time": "5",
+                    "percent": "-0.005"
+                },
+                {
+                    "wait_time": "5",
+                    "percent": "-0.003"
+                },
+                {
+                    "wait_time": "5",
+                    "percent": "-0.0015"
+                },
+                {
+                    "wait_time": "5",
+                    "percent": "-0.0010"
+                }
+            ],
+            "sid": "86906"
+        },
+        {
+            "number_of_trades": "4",
+            "buying_power_percent": "0.50",
+            "trade_after": "185",
+            "stop_loss_percent": "0.035",
+            "sequences": [
+                {
+                    "wait_time": "5",
+                    "percent": "-0.0099"
+                },
+                {
+                    "wait_time": "5",
+                    "percent": "-0.0070"
+                },
+                {
+                    "wait_time": "20",
+                    "percent": "-0.0050"
+                },
+                {
+                    "wait_time": "30",
+                    "percent": "-0.0020"
+                }
+            ],
+            "sid": "86900"
+        },
+        {
+            "number_of_trades": "4",
+            "buying_power_percent": "0.50",
+            "trade_after": "250",
+            "stop_loss_percent": "0.035",
+            "sequences": [
+                {
+                    "wait_time": "5",
+                    "percent": "-0.005"
+                },
+                {
+                    "wait_time": "5",
+                    "percent": "-0.003"
+                },
+                {
+                    "wait_time": "5",
+                    "percent": "-0.0015"
+                },
+                {
+                    "wait_time": "5",
+                    "percent": "-0.0010"
+                }
+            ],
+            "sid": "86900"
+        }
+    ]
+}

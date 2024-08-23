@@ -114,7 +114,7 @@ class StockMonitor
         ]);
     }
 
-    public function getStocks(int $sid, mixed $stock_type, int $limit = null): array
+    public function getStocks(int $sid, mixed $stock_type, int $limit = null, array $excluded = null): array
     {
         $data = [
             'signalDef' => $this->getConds($sid),
@@ -141,9 +141,12 @@ class StockMonitor
         $table_html = json_decode($response->getBody(), true)['html'];
         $stocks = Parser::getDataFromTable($table_html);
 
-        $config = new Config;
-        $stocks = array_filter($stocks, function ($stock) use ($config) {
-            return !in_array($stock['symbol'], $config['globals']['excluded']);
+        $filters = (new Config)['globals']['excluded'];
+        if(!empty($excluded))
+            array_push($filters, ...$excluded);
+
+        $stocks = array_filter($stocks, function ($stock) use ($filters) {
+            return !in_array($stock['symbol'], $filters);
         });
 
         if ($limit)

@@ -13,6 +13,7 @@ class DefensiveTrader
   private string $order_type;
   private string $action_type;
   private float $budget;
+  private ?int $max_quantity = null;
   private int $quantity = 0;
   private ?int $failed_quantity = null;
   private ?int $order_id = null;
@@ -25,6 +26,20 @@ class DefensiveTrader
     $this->action_type = $action_type;
     $this->stock['price'] = $this->trade_station->getStockEstimatedPrice($symbol, $this->order_type, $this->action_type);
     $this->stock['symbol'] = $symbol;
+  }
+
+  public function changeStock(int $sid) {
+    $stock_monitor = new StockMonitor;
+    $symbol = $stock_monitor->getStocks($sid, $this->action_type == 'BUY' ? 'buy' : 'short', 1, [$this->stock['symbol']])[0]['symbol'];
+    $this->stock = $this->trade_station->getStock($symbol);
+    $this->stock['symbol'] = $symbol;
+    $this->stock['price'] = $this->trade_station->getStockEstimatedPrice($symbol, $this->order_type, $this->action_type);
+
+    echo "Switched buyer to stock {$this->stock['symbol']}\n";
+  }
+
+  public function setMaxQuantity(int $quantity) {
+    $this->max_quantity = $quantity;
   }
 
   public function setBudget(float $budget)
@@ -44,6 +59,9 @@ class DefensiveTrader
       echo "Buying Power: $buying_power, Budget: {$this->budget}\n";
 
       $this->quantity = floor($budget / $this->stock['price']);
+      if($this->max_quantity && $this->max_quantity < $this->quantity)
+        $this->quantity = $this->max_quantity;
+
       if (isset($this->failed_quantity))
         $this->quantity = min($this->quantity, floor($this->failed_quantity * self::REDUCTION_FACTOR));
 
@@ -55,7 +73,7 @@ class DefensiveTrader
       $this->order_id = $this->trade_station->placeOrder($this->stock, $this->order_type, $this->action_type, $this->quantity);
 
       if (!$this->order_id)
-        throw new OrderFailed;
+        throw new OrderFailed("{$this->order_type} {$this->action_type} Order Not Set");
 
       $this->stock['order_id'] = $this->order_id;
 
@@ -70,19 +88,21 @@ class DefensiveTrader
           $total = $order['FilledPrice'] * $this->quantity;
 
           echo "{$this->action_type} Filled With Price: {$this->stock['price']} to spend a total of {$total}\n";
+
           $order_processed = true;
         } else if ($order['Status'] == 'REJ') {
           $this->failed_quantity = $this->quantity;
 
           echo "{$this->action_type} Rejected because: {$order['RejectReason']}\n";
-          $pattern = '/current Buying Power values of \$([-\d,\.]+) for Day Trade and \$([-\d,\.]+) for Overnight Buying Power./';
-          preg_match($pattern, $order['RejectReason'], $matches);
+          preg_match('/current Buying Power values of \$([-\d,\.]+) for Day Trade and \$([-\d,\.]+) for Overnight Buying Power./', $order['RejectReason'], $matches);
           if (isset($matches[1]))
             $this->budget = (int) str_replace(',', '', $matches[1]) * self::REDUCTION_FACTOR;
 
           $order_processed = true;
         }
       }
+
+      sleep(1);
 
       echo "\n";
     } while (!$is_filled);
@@ -93,6 +113,10 @@ class DefensiveTrader
   public function getStock()
   {
     return $this->stock;
+  }
+
+  public function getQuantity(): int {
+    return $this->quantity;
   }
 }
 

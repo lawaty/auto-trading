@@ -1,11 +1,46 @@
+function listFilters() {
+  let filters_options = ``;
+  for (let filter of window.filters)
+    filters_options += `<option value="${filter.sid}">${filter.name}</option>`
+
+  $("[name=sid]").html(filters_options);
+}
+
 $(document).on('trade_settings-loaded', () => {
   Store.loadComponent('widgets/sidebar', "#sidebar")
 
   $("[add-run]").on('click', function () {
     let which = $(this).attr('add-run')
-    let count = $(this).before().find('.run-container').length
-    addRun(which, count + 1)
+    let count = $(this).prev().find('.run-container').length
+    addRun(which, count)
   })
+
+  if (window.filters)
+    listFilters()
+  else
+    $(document).on('filters-loaded', listFilters)
+
+  AJAX.ajax({
+    url: config.API + "/params/loss",
+    type: "GET",
+    beforeSend: (xhr) => {
+      xhr.setRequestHeader('Authorization', 'Bearer ' + token)
+    },
+    complete: {
+      200: (xhr) => {
+        for (let sequence of xhr.parsed.buy.sequences)
+          addSequence('buy-loss-sequences', sequence.percent, sequence.wait_time)
+
+        $("#buy-loss-run [name=sid]").val(xhr.parsed.buy.sid)
+
+        for (let sequence of xhr.parsed.short.sequences)
+          addSequence('short-loss-sequences', sequence.percent, sequence.wait_time)
+
+        $("#short-loss-run [name=sid]").val(xhr.parsed.short.sid)
+      }
+    }
+  })
+
 
   AJAX.ajax({
     url: config.API + "/params/buy",
@@ -56,6 +91,7 @@ $(document).on('trade_settings-loaded', () => {
     $("#buy-runs .run-container").each(function (i, container) {
       let run = {
         number_of_trades: $(container).find('[name=number_of_trades]').val(),
+        buying_power_percent: $(container).find('[name=buying_power_percent]').val(),
         trade_after: $(container).find('[name=trade_after]').val(),
         stop_loss_percent: $(container).find('[name=stop_loss_percent]').val(),
         sequences: [],
@@ -91,6 +127,7 @@ $(document).on('trade_settings-loaded', () => {
     $("#short-runs .run-container").each(function (i, container) {
       let run = {
         number_of_trades: $(container).find('[name=number_of_trades]').val(),
+        buying_power_percent: $(container).find('[name=buying_power_percent]').val(),
         trade_after: $(container).find('[name=trade_after]').val(),
         stop_loss_percent: $(container).find('[name=stop_loss_percent]').val(),
         sequences: [],
@@ -118,11 +155,51 @@ $(document).on('trade_settings-loaded', () => {
       })
     }
   })
+  
+  window.loss_settings = new Form($("#loss-settings"))
+  window.loss_settings.payload = function () {
+    let buy_sequences = []
+    let short_sequences = []
+
+    $("#buy-loss-sequences li").each(function (i, li) {
+      buy_sequences.push({
+        wait_time: $(li).find("[name='wait_time[]']").val(),
+        percent: $(li).find("[name='percent[]']").val(),
+      })
+    })
+
+    $("#short-loss-sequences li").each(function (i, li) {
+      short_sequences.push({
+        wait_time: $(li).find("[name='wait_time[]']").val(),
+        percent: $(li).find("[name='percent[]']").val(),
+      })
+    })
+
+    return {
+      buy: {
+        sid: $("#buy-loss-run [name=sid]").val(),
+        sequences: buy_sequences
+      }, short: {
+        sid: $("#short-loss-run [name=sid]").val(),
+        sequences: short_sequences
+      }
+    }
+  }
+
+  window.loss_settings.setCallback({
+    200: (xhr) => {
+      Swal.fire({
+        icon: "success",
+        text: "Updated Successfully!"
+      })
+    }
+  })
 })
 
 function addRun(type, i, run = {
   number_of_trades: "",
   trade_after: "",
+  buying_power_percent: 1,
   stop_loss_percent: "",
   sequences: [{
     percent: "",
@@ -147,9 +224,14 @@ function addRun(type, i, run = {
         <i class="bi bi-trash text-danger" onclick="deleteRun(this)"></i>
       </div>
       <div class="form-row">
-        <div class="form-group  col">
-          <label for="${type}-${i}-number_of_trades">Number of Trades</label>
+        <div class="form-group col">
+          <label for="${type}-${i}-number_of_trades">#Trades</label>
           <input class="form-control" value="${run.number_of_trades}" id="${type}-${i}-number_of_trades" name="number_of_trades" placeholder="e.g. 10">
+        </div>
+
+        <div class="form-group col">
+          <label for="${type}-${i}-number_of_trades">Buying Power %</label>
+          <input class="form-control" value="${run.buying_power_percent ?? 1}" id="${type}-${i}-buying_power_percent" name="buying_power_percent" placeholder="e.g. 10">
         </div>
 
         <div class="form-group col">
@@ -174,6 +256,14 @@ function addRun(type, i, run = {
       </select>
     </div>
   `)
+
+  $("[name=buying_power_percent]").on('input', function () {
+    if ($(this).val() > 1)
+      $(this).val(1)
+    if ($(this).val() < 0)
+      $(this).val(0);
+  })
+
   for (let sequence of run.sequences)
     addSequence(type + '-' + i + '-sequences', sequence.percent, sequence.wait_time)
 
@@ -196,23 +286,23 @@ function deleteRun(i) {
 
 function addSequence(type, percent = '', wait_time = '') {
   $("#" + type).append(`
-<li>
-  <div class="form-row">
-    <div class="mx-2" style="width: fit-content">
-      <p style="color:#fff;">#</p>
-      <i onclick="addSequence('${type}')" class="bi bi-plus-circle mr-1 text-success"></i>
-      <i onclick="removeStage(this)" class="bi bi-trash text-danger"></i>
-    </div>
-    <div class="col form-group">
-      <label for="key">Wait Time</label>
-      <input type="text" value="${wait_time}" name="wait_time[]" class="form-control" placeholder="Wait Time">
-    </div>
-    <div class="col form-group">
-      <label for="key">Percent</label>
-      <input type="text" value="${percent}" name="percent[]" class="form-control" placeholder="Threshold Percent">
-    </div>
-  </div>
-</li>`)
+    <li>
+      <div class="form-row">
+        <div class="mx-2" style="width: fit-content">
+          <p style="color:#fff;">#</p>
+          <i onclick="addSequence('${type}')" class="bi bi-plus-circle mr-1 text-success"></i>
+          <i onclick="removeStage(this)" class="bi bi-trash text-danger"></i>
+        </div>
+        <div class="col form-group">
+          <label for="key">Wait Time</label>
+          <input type="text" value="${wait_time}" name="wait_time[]" class="form-control" placeholder="Wait Time">
+        </div>
+        <div class="col form-group">
+          <label for="key">Percent</label>
+          <input type="text" value="${percent}" name="percent[]" class="form-control" placeholder="Threshold Percent">
+        </div>
+      </div>
+    </li>`)
 }
 
 function removeStage(i) {
