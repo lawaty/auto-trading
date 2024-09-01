@@ -3,7 +3,6 @@
 class Initiator
 {
   private string $which;
-  private string $other;
 
   private TradeStation $trade_station;
   private StockMonitor $stock_monitor;
@@ -15,7 +14,6 @@ class Initiator
   public function __construct(string $type)
   {
     $this->which = $type;
-    $this->other = $this->which == 'buy' ? 'short' : 'buy';
     $this->trade_station = new TradeStation($type);
     $this->stock_monitor = new StockMonitor;
     $this->config = new Config;
@@ -68,18 +66,11 @@ class Initiator
       countdown("{$this->which} run " . ($i + 1), $wait);
 
       echo "Preparing trades and starting in a while\n";
-
-      if ($run['buying_power_percent'] != 1) {
-        $budget = $run['buying_power_percent'] * $this->buying_power;
-      } else {
-        $budget = $this->buying_power = $this->trade_station->getBuyingPower();
-        if (count($this->config[$this->other]))
-          $budget /= 2;
-      }
-
-      $budget /= $run['number_of_trades'];
-
       $stocks = $this->stock_monitor->getStocks($run['sid'], $this->which, $run['number_of_trades']);
+
+      $this->buying_power = $this->trade_station->getBuyingPower();
+      $budget = $run['buying_power_percent'] * $this->buying_power;
+      $budget /= count($stocks);
 
       $processes = [];
       file_put_contents(ROOT_DIR . "/tmp/excluded.json", "");

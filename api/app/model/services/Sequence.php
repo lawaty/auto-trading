@@ -164,7 +164,7 @@ class Sequence
             if ($this->aboutToClose() || $limit_status == 'OUT' && $stop_status == 'OUT')
                 return false;
 
-            sleep(30);
+            sleep(20);
         }
         return false;
     }

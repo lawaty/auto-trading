@@ -31,12 +31,12 @@ $(document).on('trade_settings-loaded', () => {
         for (let sequence of xhr.parsed.buy.sequences)
           addSequence('buy-loss-sequences', sequence.percent, sequence.wait_time)
 
-        $("#buy-loss-run [name=sid]").val(xhr.parsed.buy.sid)
+        $("#buy-loss-run [name=stop_loss_percent]").val(xhr.parsed.buy.stop_loss_percent)
 
         for (let sequence of xhr.parsed.short.sequences)
           addSequence('short-loss-sequences', sequence.percent, sequence.wait_time)
 
-        $("#short-loss-run [name=sid]").val(xhr.parsed.short.sid)
+        $("#short-loss-run [name=stop_loss_percent]").val(xhr.parsed.short.stop_loss_percent)
       }
     }
   })
@@ -177,10 +177,10 @@ $(document).on('trade_settings-loaded', () => {
 
     return {
       buy: {
-        sid: $("#buy-loss-run [name=sid]").val(),
+        stop_loss_percent: $("#buy-loss-run [name=stop_loss_percent]").val(),
         sequences: buy_sequences
       }, short: {
-        sid: $("#short-loss-run [name=sid]").val(),
+        stop_loss_percent: $("#short-loss-run [name=stop_loss_percent]").val(),
         sequences: short_sequences
       }
     }

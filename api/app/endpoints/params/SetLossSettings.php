@@ -8,23 +8,21 @@ class SetLossSettings extends Endpoint
       'buy' => [
         true,
         [
-          'stop_loss_percent' => [false, MyRegex::FLOAT],
+          'stop_loss_percent' => [true, MyRegex::FLOAT],
           'sequences' => [true, [
             'percent' => [true, Regex::generic(1, 200)],
             'wait_time' => [true, Regex::generic(1, 200)]
-          ], true],
-          'sid' => [true, Regex::INT]
+          ], true]
         ]
       ],
       'short' => [
         true,
         [
-          'stop_loss_percent' => [false, MyRegex::FLOAT],
+          'stop_loss_percent' => [true, MyRegex::FLOAT],
           'sequences' => [true, [
             'percent' => [true, Regex::generic(1, 200)],
             'wait_time' => [true, Regex::generic(1, 200)]
-          ], true],
-          'sid' => [true, Regex::INT]
+          ], true]
         ]
       ]
     ], $_POST);
@@ -35,12 +33,6 @@ class SetLossSettings extends Endpoint
     $params = (new Config)->toArray();
     $params['buy-loss'] = $this->request['buy'];
     $params['short-loss'] = $this->request['short'];
-
-    if (!isset($params['buy-loss']['stop_loss_percent']))
-      $params['buy-loss']['stop_loss_percent'] = 0.1;
-
-    if (!isset($params['short-loss']['stop_loss_percent']))
-      $params['short-loss']['stop_loss_percent'] = 0.1;
 
     if (file_put_contents(JSONS_DIR . '/params.json', json_encode($params)))
       return new Response;
