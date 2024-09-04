@@ -30,15 +30,6 @@ $(document).on('general-loaded', () => {
         $("#money").val(xhr.parsed.globals.money)
         $("#money-percent").val(xhr.parsed.globals.money / xhr.parsed.balance * 100)
 
-        for (let API of xhr.parsed.globals.APIs)
-          addAPIKey(API.key, API.secret)
-
-        $("[name=market_opens_at]").val(xhr.parsed.globals.market_opens_at)
-        $("[name=market_closes_at]").val(xhr.parsed.globals.market_closes_at)
-
-        for (let day of xhr.parsed.globals.closed_days)
-          $(`[value=${day}]`).prop('checked', true)
-
         $("[name=account_id]").val(xhr.parsed.globals.account_id)
       }
     }

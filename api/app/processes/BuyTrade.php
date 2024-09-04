@@ -6,6 +6,8 @@ require_once __DIR__ . "../../../autoload.php";
 
 $args = json_decode($argv[1], true);
 
+echo "Strated trading for {$args['symbol']} at " . (new Ndate)->format(Ndate::DATE_TIME) . '\n';
+
 $buyer = new DefensiveTrader(new TradeStation('buy'), $args['symbol'], 'Market', 'BUY');
 $buyer->setBudget($args['budget']);
 if (isset($args['max_quantity']))

@@ -7,13 +7,13 @@ class SetGlobalParams extends Endpoint
     {
         $this->params_file = JSONS_DIR . "/params.json";
         $this->init([
-            'closed_days' => [false, Regex::generic(1, 300)],
+            'closed_days' => [false, Regex::generic(0, 300)],
             'market_opens_at' => [false, Regex::TIME],
             'market_closes_at' => [false, Regex::TIME],
             'account_id' => [false, Regex::generic(1, 200)],
             'money' => [false, Regex::ANY],
-            'keys' => [false, Regex::generic(1, 300)],
-            'secrets' => [false, Regex::generic(1, 300)],
+            'keys' => [false, Regex::generic(0, 300)],
+            'secrets' => [false, Regex::generic(0, 300)],
             'is_full_power' => [false, Regex::INT],
             'is_live' => [false, Regex::INT]
         ], $_POST);

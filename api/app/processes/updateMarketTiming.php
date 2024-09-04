@@ -10,6 +10,19 @@ function restart()
   }
 }
 
+function restartTomorrow()
+{
+  echo "Today is a holiday. The market is closed.\n";
+  $restart_at = (new Ndate('01:00:00'))->addDays(1);
+
+  // Wait until 1 am tomorrow to restart
+  $wait_time = (new Ndate())->minutesUntil($restart_at);
+  echo "Waiting until 1 am tomorrow to restart (in $wait_time minutes).\n";
+  sleep($wait_time * 60 + 1); // Convert to seconds and wait
+
+  restart(); // Restart the process after waiting
+}
+
 while (true) {
   try {
     echo "Fetching...\n";
@@ -25,6 +38,24 @@ while (true) {
     $xpath = new DOMXPath($dom);
     $query = "//table[@id='holStatusTable']/tbody/tr[1]";
     $nodes = $xpath->query($query);
+
+    // Holiday Check
+    if (preg_match('/isholiday\s*=\s*(true|false)/i', $html, $matches)) {
+      $isholiday = ($matches[1] === 'true');
+    } else {
+      $holidays = extractHolidays($dom);
+      $isholiday = in_array((new Ndate())->format(), $holidays);
+    }
+
+    if ($isholiday){
+      restartTomorrow();
+
+      // Negative Section
+      echo "Negative Section Reached !!\n";
+      continue;
+    }
+
+    echo "Today is not a holiday. Checking Open Time ...\n";
 
     if ($nodes->length > 0) {
       $firstRow = $nodes->item(0);
@@ -78,4 +109,26 @@ while (true) {
   } catch (Exception | Error $e) {
     echo (new Ndate)->format(Ndate::DATE_TIME) . ": " . trace($e) . "\n";
   }
+}
+
+function extractHolidays(DomDocument $dom): array
+{
+  $xpath = new DOMXPath($dom);
+  $query = "//table[contains(@class, 'panel-table-no-side-borders')]//tbody/tr";
+  $holidayRows = $xpath->query($query);
+
+  $holidays = [];
+  /**
+   * @var DOMNode
+   */
+  foreach ($holidayRows as $row) {
+    $cells = $row->getElementsByTagName('td');
+
+    if ($cells->length == 2) {
+      $holidayDate = trim($cells->item(1)->nodeValue);
+      $holidays[] = (new Ndate($holidayDate))->format();
+    }
+  }
+
+  return $holidays;
 }
