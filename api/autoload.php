@@ -12,9 +12,10 @@ const PLUGINS_DIR = ROOT_DIR . "/plugins";
 const LOG_DIR =  ROOT_DIR . "/logs";
 const MEDIA_DIR =  ROOT_DIR . "/media";
 
-const ENTITIES_DIR = APP_DIR . '/model/entities';
-const MAPPERS_DIR = APP_DIR . '/model/mappers';
-const SERVICES_DIR = APP_DIR . '/model/services';
+const MODEL_DIR = APP_DIR . '/model';
+const ENTITIES_DIR = MODEL_DIR . '/entities';
+const MAPPERS_DIR = MODEL_DIR . '/mappers';
+const SERVICES_DIR = MODEL_DIR . '/services';
 
 const SYSTEM_HELPERS_DIR = CORE_DIR . '/helpers';
 const USER_HELPERS_DIR = APP_DIR . '/helpers';
@@ -28,6 +29,7 @@ const SYSTEM_EXCEPTIONS_DIR = CORE_DIR . '/exceptions';
 const USER_EXCEPTIONS_DIR = APP_DIR . '/exceptions';
 
 const USER_LIBS_DIR = APP_DIR . '/lib';
+const TMP_DIR = ROOT_DIR . '/tmp';
 
 const DB_CORE = CORE_DIR . '/database';
 
@@ -55,9 +57,7 @@ class ArteAutoloader
     return self::$inst;
   }
 
-  public function __construct()
-  {
-  }
+  public function __construct() {}
 
   public function load(string $classname)
   {
@@ -71,7 +71,7 @@ class ArteAutoloader
       require MAPPERS_DIR . "/$classname.php";
     else if (file_exists(ENTITIES_DIR . "/$classname.php"))
       require ENTITIES_DIR . "/$classname.php";
-    
+
     else if (file_exists(SERVICES_DIR . "/$classname.php"))
       require SERVICES_DIR . "/$classname.php";
     else if (file_exists(USER_HELPERS_DIR . "/$classname.php"))

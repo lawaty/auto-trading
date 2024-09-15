@@ -7,6 +7,7 @@
   "stockMonitor/getFilters": "GetFilters.php",
   "test": "testing/Test.php",
   "testing/closePositions": "testing/closeAllPositions.php",
+  "cache-test": "testing/CacheTest.php",
 
   "params/SetGlobalParams" : "params/SetGlobalParams.php",
   "params/SetBuyParams" : "params/SetBuyParams.php",

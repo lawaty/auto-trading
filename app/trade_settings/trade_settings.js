@@ -43,7 +43,7 @@ $(document).on('trade_settings-loaded', () => {
 
 
   AJAX.ajax({
-    url: config.API + "/params/buy",
+    url: config.API + "/params/buy?debug",
     type: "GET",
     beforeSend: (xhr) => {
       xhr.setRequestHeader('Authorization', 'Bearer ' + token)
@@ -64,7 +64,7 @@ $(document).on('trade_settings-loaded', () => {
   })
 
   AJAX.ajax({
-    url: config.API + "/params/short",
+    url: config.API + "/params/short?debug",
     type: "GET",
     beforeSend: (xhr) => {
       xhr.setRequestHeader('Authorization', 'Bearer ' + token)

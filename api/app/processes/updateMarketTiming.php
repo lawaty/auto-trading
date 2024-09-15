@@ -47,6 +47,8 @@ while (true) {
       $isholiday = in_array((new Ndate())->format(), $holidays);
     }
 
+
+
     if ($isholiday){
       restartTomorrow();
 
@@ -85,6 +87,7 @@ while (true) {
     if ((new Ndate($all_params['globals']['until']))->format(Ndate::DATE_TIME) == $open_time->format(Ndate::DATE_TIME) && (new Ndate)->after($open_time))
       $status = 'Open';
 
+    $all_params['globals']['is_holiday'] = $isholiday;
     $all_params['globals']['status'] = $status;
     $all_params['globals']['open_time'] = $open_time->format(Ndate::DATE_TIME);
     $all_params['globals']['until'] = $event_at->format(Ndate::DATE_TIME);

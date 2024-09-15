@@ -1,5 +1,7 @@
 <?php
 
+const CLOSING_TOLERANCE = 5; // mins
+
 class Sequence
 {
     const FILLED = 1;
@@ -39,7 +41,7 @@ class Sequence
 
         $this->parseArgs($argv);
 
-        $this->config = new Config;
+        $this->config = Config::getInst();
         $this->bell = new Ndate($this->config['globals']['until']);
         $this->trade_station = new TradeStation(ucfirst($this->which));
     }
@@ -135,6 +137,14 @@ class Sequence
         while (time() - $start < $secs) {
             $limit_order = $this->trade_station->getOrder($this->stock['limit_id']);
             $stop_order = $this->trade_station->getOrder($this->stock['stop_id']);
+
+            if (!$limit_order || !$stop_order) {
+                echo "Limit order or stop order not found \n";
+                var_dump($limit_order, $stop_order);
+                sleep(15);
+                continue;
+            }
+
             $limit_status = $limit_order['Status'];
             $stop_status = $stop_order['Status'];
 
@@ -151,12 +161,12 @@ class Sequence
             if ($limit_status == 'FLL' || $stop_status == 'FLL')
                 return [$limit_status, $stop_status, $limit_order['FilledPrice'] ?? -1];
 
-            if ($limit_status != 'ACK') {
+            if (!in_array($limit_status, ['ACK', 'OPN'])) {
                 echo "Weird Limit Order Status. Here is the order\n";
                 prettyPrint($limit_order);
             }
 
-            if ($stop_status != 'ACK') {
+            if (!in_array($stop_status, ['ACK', 'OPN'])) {
                 echo "Weird Stoploss Order Status. Here is the order\n";
                 prettyPrint($stop_order);
             }
@@ -164,7 +174,7 @@ class Sequence
             if ($this->aboutToClose() || $limit_status == 'OUT' && $stop_status == 'OUT')
                 return false;
 
-            sleep(20);
+            sleep(15);
         }
         return false;
     }
@@ -177,5 +187,5 @@ class Sequence
     public function getStock(): array
     {
         return $this->stock;
-    }   
+    }
 }

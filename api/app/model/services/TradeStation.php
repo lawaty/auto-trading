@@ -12,14 +12,29 @@ class TradeStation
     public string $sim_trade_api_base = "https://sim-api.tradestation.com/v3";
     public string $api_base;
     public string $account_id = "";
-    private $params;
+    private array $params;
     private string $which;
-    private Ndate $refreshed_at;
 
     public function __construct($which)
     {
         $this->which = $which;
-        $this->refreshSettings();
+        $this->loadSettings();
+        ArteCache::getInst()->install($this, [
+            'tradestation_access_token' => 'getAccessToken'
+        ]);
+    }
+
+    public function installCache(): void
+    {
+        ArteCache::getInst()->install($this, [
+            'today_orders' => 'getTodayOrders',
+            'balance' => 'getBalance',
+            'buying_power' => 'getBuyingPower',
+            'stock' => 'getStock',
+            'stock_price' => 'getStockEstimatedPrice',
+            'order' => 'getOrder',
+            'order_quantity' => 'getExecQuantity'
+        ]);
     }
 
     public function getTodayOrders(array $filters = [])
@@ -53,12 +68,9 @@ class TradeStation
         return $this->curl("{$this->api_base}/orderexecution/orders/$order_id", "DELETE");
     }
 
-    public function curl(string $url, string $type, array $data = [], array $headers = []): mixed
+    public function curl(string $url, string $type, array $data = [], array $headers = [], $logging = false): mixed
     {
-        if (!isset($this->refreshed_at) || $this->refreshed_at->minutesUntil(new Ndate) > 10) {
-            $this->refreshToken();
-            $this->refreshed_at = new Ndate;
-        }
+        $this->access_token = ArteCache::getInst()->get('tradestation_access_token');
 
         if (!isset($headers['Authorization']) && isset($this->access_token))
             $headers['Authorization'] = "Bearer " . $this->access_token;
@@ -68,16 +80,20 @@ class TradeStation
 
         $curl = new ArteCurl($url);
         $curl->setHeaders($headers);
-        $response = $curl->send($type, $data)->getBody();
+        $response = $curl->send($type, $data, $logging)->getBody();
         if (isJson($response))
-            return json_decode($response, true);
-        else return $response;
+            $response =  json_decode($response, true);
+        
+        $error = $response['Errors'] ?? $response['Error'] ?? null;
+        if($error)
+            var_dump($response);
+        
+        return $response;
     }
 
-    public function refreshSettings()
+    public function loadSettings()
     {
-        $json_data = file_get_contents(JSONS_DIR . "/params.json");
-        $this->params = json_decode($json_data, true);
+        $this->params = Config::getInst()->toArray();
         $this->account_id = $this->params['globals']['account_id'];
         if ($this->params['globals']['is_live'] == "0")
             $this->api_base = $this->sim_trade_api_base;
@@ -85,41 +101,7 @@ class TradeStation
             $this->api_base = $this->live_trade_api_base;
     }
 
-    public function authenticate()
-    {
-        $authorizing_url = 'https://signin.tradestation.com/authorize';
-        $data = [
-            'response_type' => "code",
-            'client_id' => $this->api_key,
-            'redirect_uri' => 'https://auto-trading.drolez-apps.cloud/',
-            'scope' => 'openid profile offline_access MarketData ReadAccount Trade',
-            'audience' => 'https://api.tradestation.com',
-            'state' => 'wow_idk_12345'
-        ];
-        $curl = new ArteCurl($authorizing_url);
-        $curl->send("GET", $data);
-    }
-
-    public function getAccessToken()
-    {
-        $curl = new ArteCurl('https://signin.tradestation.com/oauth/token');
-        $curl->setHeaders([
-            'Content-Type:application/x-www-form-urlencoded'
-        ]);
-
-        $response = $curl->send("POST", [
-            'grant_type' => "authorization_code",
-            'client_id' => $this->api_key,
-            'client_secret' => $this->api_secret,
-            'redirect_uri' => 'https://auto-trading.drolez-apps.cloud/',
-            'code' => 'GwrN5QHRjJ_-ppDb',
-            'state' => 'wow_idk_12345'
-        ]);
-
-        $this->access_token = $response->getBody()['access_token'];
-    }
-
-    public function refreshToken()
+    public function getAccessToken(): string
     {
         $refresh_url = 'https://signin.tradestation.com/oauth/token';
         $header = [
@@ -136,19 +118,23 @@ class TradeStation
         $curl->setHeaders($header);
         $response = $curl->send("POST", $data)->getBody();
         $this->access_token = json_decode($response)->access_token;
+        return $this->access_token;
     }
 
-    public function getBalance()
+    public function getBalance(): ?float
     {
         $account_id = $this->account_id;
         $balance_url = $this->api_base . "/brokerage/accounts/$account_id/balances";
         $response = $this->curl($balance_url, "GET");
 
-        $error = $respose['Errors'] ?? $response['Error'] ?? null;
+        $error = $response['Errors'] ?? $response['Error'] ?? null;
         if ($error && str_contains($response['Message'], "Invalid Account ID"))
             throw new InvalidAccountID();
+        else if ($error) {
+            return null;
+        }
 
-        return $response['Balances'][0]['CashBalance'];
+        return $response['Balances'][0]['CashBalance'] ?? null;
     }
 
     public function getBuyingPower()
@@ -171,17 +157,9 @@ class TradeStation
         return $power;
     }
 
-    public function getAccounts()
+    public function getStock(string $symbol): ?array
     {
-        $get_accounts_url = $this->api_base . "/brokerage/accounts";
-
-        $response = $this->curl($get_accounts_url, 'GET');
-        return $response;
-    }
-
-    public function getStock(string $symbol): array
-    {
-        return $this->curl("marketdata/quotes/$symbol", "GET")['Quotes'][0];
+        return $this->curl("marketdata/quotes/$symbol", "GET")['Quotes'][0] ?? null;
     }
 
     public function getStockEstimatedPrice($stock_symbol, $order_type, $trade_action)
@@ -191,6 +169,7 @@ class TradeStation
         $headers = [
             'content-type' => 'application/json'
         ];
+        
         $data = [
             "AccountID" => $account_id,
             "Symbol" => $stock_symbol,
@@ -206,7 +185,7 @@ class TradeStation
 
         $response = $this->curl($execution_url, "POST", $data, $headers);
 
-        $error = $respose['Errors'] ?? $response['Error'] ?? null;
+        $error = $response['Errors'] ?? $response['Error'] ?? null;
         if ($error) {
             echo __FUNCTION__ . "\n";
             var_dump("An error has occured");
@@ -248,7 +227,7 @@ class TradeStation
         // echo "\n$order_type $trade_action:\n";
         // print_r($data);
         // echo "\n";
-        $response = $this->curl($ordering_url, "POST", $data);
+        $response = $this->curl($ordering_url, "POST", $data, [], true);
 
         $error = $response['Errors'] ?? $response['Error'] ?? null;
         if ($error) {
@@ -315,10 +294,10 @@ class TradeStation
             $operations[$i]['price'] = $price;
         }
 
-        $response = $this->curl($ordering_url, "POST", $payload);
+        $response = $this->curl($ordering_url, "POST", $payload, [], true);
         // var_dump($response);
 
-        $error = $respose['Errors'] ?? $response['Error'] ?? null;
+        $error = $response['Errors'] ?? $response['Error'] ?? null;
         if ($error) {
             echo __FUNCTION__ . "\n";
             prettyPrint($payload);
@@ -382,9 +361,9 @@ class TradeStation
         unset($data['trade_action']);
         unset($data['order_type']);
 
-        $response = $this->curl($put_url, 'PUT', $data, $headers);
+        $response = $this->curl($put_url, 'PUT', $data, $headers, true);
 
-        $error = $respose['Errors'] ?? $response['Error'] ?? null;
+        $error = $response['Errors'] ?? $response['Error'] ?? null;
         if ($error) {
             echo __FUNCTION__ . "\n";
             prettyPrint($data);
@@ -403,7 +382,7 @@ class TradeStation
     {
         $order_uri = "$this->api_base/brokerage/accounts/$this->account_id/orders/$order_id";
 
-        $response = $this->curl($order_uri, "GET");
+        $response = $this->curl($order_uri, "GET", [], [], true); // debugging
 
         return $response['Orders'][0] ?? null;
     }
@@ -414,7 +393,7 @@ class TradeStation
         $exec_url = $this->api_base . "/brokerage/accounts/$account_id/orders/" . $order_id;
 
         $response = $this->curl($exec_url, "GET");
-        $exec_quantity = $response["Orders"][0]['Legs'][0]['ExecQuantity'];
+        $exec_quantity = $response["Orders"][0]['Legs'][0]['ExecQuantity'] ?? 0;
 
         return $exec_quantity;
     }

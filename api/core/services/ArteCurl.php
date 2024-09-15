@@ -7,11 +7,17 @@ class ArteCurl
   private array $headers = [];
   private array $response_headers = [];
   private string $error = '';
+  private $log_file;
 
   public function __construct(string $endpoint)
   {
     $this->url = $endpoint;
     $this->curl = curl_init();
+
+    $path = LOG_DIR . '/outbound/' . (new Ndate())->format() . ".log";
+    $this->log_file = fopen($path, "a");
+    if (!$this->log_file)
+      throw new PermissionDenied($path);
   }
 
   public function setHeaders(array $headers): void
@@ -20,7 +26,7 @@ class ArteCurl
       $this->headers[] = "$key: $value";
   }
 
-  public function send($request_type, $data = []): Response
+  public function send(string $request_type, array $data = [], $logging = false): Response
   {
     curl_setopt($this->curl, CURLOPT_URL, $this->url);
     curl_setopt($this->curl, CURLOPT_RETURNTRANSFER, true);
@@ -41,7 +47,12 @@ class ArteCurl
 
     $this->closeCurl();
 
-    return new Response($response, $http_status_code, $this->response_headers);
+    $response = new Response($response, $http_status_code, $this->response_headers);
+
+    if ($logging)
+      $this->log("$request_type {$this->url}", $data, $response);
+
+    return $response;
   }
 
   private function headerCallback($ch, $header)
@@ -106,6 +117,16 @@ class ArteCurl
   public function getError(): string
   {
     return $this->error;
+  }
+
+  private function log(string $request, array $payload, Response $response): void
+  {
+    fwrite($this->log_file, (new Ndate)->format(Ndate::DATE_TIME) . "\n$request \nBody: " . json_encode($payload, JSON_PRETTY_PRINT, JSON_UNESCAPED_SLASHES) . "\nResponse Code: " . $response->getCode() . "\nResponse Body: \n" . $response->getBody() . "\n\n");
+  }
+
+  public function __destruct()
+  {
+    fclose($this->log_file);
   }
 
   public function stream($url, $callback)

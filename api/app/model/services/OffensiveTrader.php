@@ -54,9 +54,9 @@ class OffensiveTrader
       echo "Spending $budget to {$this->action_type} {$this->quantity} stocks...\n";
 
       if (isset($this->order_id)) {
-        echo "Selling to repurshase\n";
-        $this->trade_station->placeOrder($this->stock, 'Market', 'SELL', $this->quantity);
-        sleep(3);
+        // echo "Selling to repurshase\n";
+        // $this->trade_station->placeOrder($this->stock, 'Market', 'SELL', $this->quantity);
+        // sleep(3);
       }
 
       $this->order_id = $this->trade_station->placeOrder($this->stock, $this->order_type, $this->action_type, $this->quantity + $more);

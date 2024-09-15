@@ -50,6 +50,18 @@ class Ndate extends DateTime
     return $this;
   }
 
+  public function addMinutes(int $minutes): Ndate
+  {
+    $interval = new DateInterval('PT' . abs($minutes) . 'M');
+    if ($minutes >= 0)
+      $this->add($interval);
+    else
+      $this->sub($interval);
+
+    return $this;
+  }
+
+
   public function addSeconds(int $secs): Ndate
   {
     $interval = new DateInterval('PT' . abs($secs) . 'S');
@@ -96,11 +108,13 @@ class Ndate extends DateTime
     return $sign1 * $sign2 < 0;
   }
 
-  public function before(Ndate $date) {
+  public function before(Ndate $date)
+  {
     return $this->minutesUntil($date) > 0;
   }
 
-  public function after(Ndate $date) {
+  public function after(Ndate $date)
+  {
     return $this->minutesUntil($date) <= 0;
   }
 }

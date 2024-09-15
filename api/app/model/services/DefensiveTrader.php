@@ -18,14 +18,13 @@ class DefensiveTrader
   private ?int $failed_quantity = null;
   private ?int $order_id = null;
 
-  public function __construct(TradeStation $trade_station, string $symbol, string $order_type, string $action_type)
+  public function __construct(TradeStation $trade_station, array $stock, string $order_type, string $action_type)
   {
     $this->trade_station = $trade_station;
-    $this->stock = $this->trade_station->getStock($symbol);
+    $this->stock = $stock;
     $this->order_type = $order_type;
     $this->action_type = $action_type;
-    $this->stock['price'] = $this->trade_station->getStockEstimatedPrice($symbol, $this->order_type, $this->action_type);
-    $this->stock['symbol'] = $symbol;
+    $this->stock['price'] = $this->trade_station->getStockEstimatedPrice($stock['symbol'], $this->order_type, $this->action_type);
   }
 
   public function changeStock(int $sid) {
@@ -49,9 +48,10 @@ class DefensiveTrader
 
   public function run(): void
   {
+    $cache = ArteCache::getInst();
     $is_filled = false;
     do {
-      $buying_power = $this->trade_station->getBuyingPower();
+      $buying_power = $cache->get('buying_power');
       if ($buying_power < $this->budget)
         $this->budget = $buying_power;
 
@@ -91,12 +91,12 @@ class DefensiveTrader
 
           $order_processed = true;
         } else if ($order['Status'] == 'REJ') {
-          $this->failed_quantity = $this->quantity;
-
           echo "{$this->action_type} Rejected because: {$order['RejectReason']}\n";
           preg_match('/current Buying Power values of \$([-\d,\.]+) for Day Trade and \$([-\d,\.]+) for Overnight Buying Power./', $order['RejectReason'], $matches);
-          if (isset($matches[1]))
+          if (isset($matches[1])) {
+            $this->failed_quantity = $this->quantity;
             $this->budget = (int) str_replace(',', '', $matches[1]) * self::REDUCTION_FACTOR;
+          }
 
           $order_processed = true;
         }

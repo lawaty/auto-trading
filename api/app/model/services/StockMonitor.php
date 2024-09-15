@@ -7,14 +7,25 @@ class StockMonitor
     private array $filter_data;
     private string $cookie = '';
     private array $signals;
-    private Ndate $refreshed_at;
+    private Ndate $cookie_refreshed_at;
+    /**
+     * @var array<Ndate> $conds_refreshed_at
+     */
 
-    private function curl(string $path, string $type, array $data = [], array $headers = []): Response
+    public function __construct()
     {
-        if (!isset($this->refreshed_at) || $this->refreshed_at->minutesUntil(new Ndate) > 10) {
-            $this->refreshCookie();
-            $this->refreshed_at = new Ndate;
-        }
+        ArteCache::getInst()->install($this, [
+            'stockmonitor_cookie' => 'getCookie',
+            'conds' => ['getConds', 300],
+            'signals' => ['getSignals', 300],
+            'runId' => 'getRunId',
+            'stocks' => 'getStocks'
+        ]);
+    }
+
+    private function curl(string $path, string $type, array $data = [], array $headers = [], bool $logging = false): Response
+    {
+        $this->cookie = ArteCache::getInst()->get('stockmonitor_cookie');
 
         $headers = [
             ...$headers,
@@ -25,23 +36,14 @@ class StockMonitor
 
         $curl = new ArteCurl("https://www.members.stockmonitor.com/$path");
         $curl->setHeaders($headers);
-        return $curl->send($type, $data);
+        return $curl->send($type, $data, $logging);
     }
 
     public function getConds(int $filter_id)
     {
         $html = $this->curl("signal", "GET", ['sid' => $filter_id])->getBody();
-
         preg_match("/var signal = jsonParse\((\'|\")(.*?)(\'|\")\)/", $html, $matches);
-
         return json_decode($matches[2], true)['definition'];
-    }
-
-    public function getRunId(int $filter_id)
-    {
-        $html = $this->curl("signal", "GET", ['sid' => $filter_id])->getBody();
-        preg_match("/test-signal-[0-9]+/", $html, $matches);
-        return $matches[0];
     }
 
     public function getSignals(): array
@@ -90,11 +92,7 @@ class StockMonitor
         return $this->signals;
     }
 
-    public function __construct()
-    {
-    }
-
-    private function refreshCookie()
+    public function getCookie(): string
     {
         $curl = new ArteCurl('https://www.members.stockmonitor.com/auth/login');
 
@@ -110,15 +108,18 @@ class StockMonitor
             'Host' => 'www.members.stockmonitor.com'
         ]);
         $response = $curl->send("POST", [
-            'email' => $_ENV['stockmail'], 'pwd' => $_ENV['stockpwd']
+            'email' => $_ENV['stockmail'],
+            'pwd' => $_ENV['stockpwd']
         ]);
+
+        return $this->cookie;
     }
 
-    public function getStocks(int $sid, mixed $stock_type, int $limit = null, array $excluded = null): array
+    public function getRunId(int $sid): string
     {
+        $cache = ArteCache::getInst();
         $data = [
-            'signalDef' => $this->getConds($sid),
-            // 'runId' => $this->getRunId($sid),
+            'signalDef' => $cache->get('conds', [$sid]),
             'runId' => "test-signal-1722350933484",
             "symbolsSet" => "us-type-stock",
             "timeframe" => "daily",
@@ -126,7 +127,13 @@ class StockMonitor
             "is_snippet" => false,
         ];
 
-        $response = $this->curl("signal/test/", "POST", $data);
+        return $this->curl("signal/test/", "POST", $data)->getBody();
+    }
+
+    public function getStocks(int $sid, mixed $stock_type, int $limit = null, array $excluded = null, array $included = null): array
+    {
+        $cache = ArteCache::getInst();
+        echo "Fetching Stocks... \n";
 
         $filter_data = [
             'page' => 1,
@@ -134,24 +141,28 @@ class StockMonitor
                 "field" => "pchange",
                 'dir' => $stock_type == static::BUY || $stock_type == "buy" ? 'DESC' : 'ASC',
             ],
-            'runId' => json_decode($response->getBody(), true)['data']['runId']
+            'runId' => json_decode($cache->get('runId', [$sid]), true)['data']['runId']
         ];
 
         $response = $this->curl("signal/test-result-page", "POST", $filter_data);
         $table_html = json_decode($response->getBody(), true)['html'];
         $stocks = Parser::getDataFromTable($table_html);
 
-        $filters = (new Config)['globals']['excluded'];
-        if(!empty($excluded))
+        $filters = Config::getInst()['globals']['excluded'];
+        if (!empty($excluded))
             array_push($filters, ...$excluded);
 
         $stocks = array_filter($stocks, function ($stock) use ($filters) {
             return !in_array($stock['symbol'], $filters);
         });
 
+        if (!empty($included))
+            $stocks = array_filter($stocks, function ($stock) use ($included) {
+                return in_array($stock['symbol'], $included);
+            });
+
         if ($limit)
             return array_splice($stocks, 0, $limit);
-        else
-            return $stocks;
+        return $stocks;
     }
 }
