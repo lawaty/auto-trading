@@ -39,6 +39,7 @@ class Timing
     $market_time = new Ndate($this->config['globals']['open_time']);
     if ($this->config['globals']['is_holiday'])
       $market_time->addDays(1);
+    
     return $market_time;
   }
 
@@ -47,8 +48,7 @@ class Timing
     if ($this->config['globals']['is_holiday'])
       return false;
 
-    $market_start = $this->config['globals']['open_time'];
-    $till_run = (new Ndate)->secondsUntil(new Ndate($market_start));
+    $till_run = (new Ndate)->secondsUntil($this->getMarketTime());
     return $till_run <= 90;
   }
 
