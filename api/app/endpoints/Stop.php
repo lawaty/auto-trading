@@ -25,6 +25,8 @@ class Stop extends Authenticated
       foreach ($processes as $process)
         $process->shutdown();
       
+      DefensiveTrader::emptyCurrentlyTrading();
+
       return new Response;
     } catch (Exception | Error $e) {
       return new Response('', 500);

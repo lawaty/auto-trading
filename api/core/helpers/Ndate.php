@@ -24,7 +24,7 @@ class Ndate extends DateTime
   public function secondsUntil(Ndate $date): int
   {
     $diff = $this->diff($date);
-    $seconds = $diff->days * 24 * 3600 + $diff->h * 3600 + $diff->i * 60 + $diff->s;
+    $seconds = $diff->days * 24 * 3600 + $diff->h * 3600 + $diff->i * 60 + $diff->s + 1;
 
     // If the target date is before the current date, make the difference negative
     if ($this > $date)

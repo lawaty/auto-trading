@@ -74,11 +74,26 @@ class Sequence
 
             // busy wait until limit is exceeded for all items or wait_time finishes
             echo "Waiting till limit filled or " . $stage_config['wait_time'] . " mins pass\n";
-            $is_filled = $this->waitFilling($stage_config['wait_time'] * 60);
+            try {
+                $is_filled = $this->waitFilling($stage_config['wait_time'] * 60);
+            } catch (InvalidStopPrice $e) {
+                $this->trade_station->cancel($this->stock['limit_id']);
+                [$this->stock['stop_id'], $this->stock['limit_id']] = $this->trade_station->placeOCO($this->stock, [[
+                    'percent' => $this->danger,
+                    'order_type' => 'StopMarket',
+                    'trade_action' => $this->close_position
+                ], [
+                    'percent' => $stage_config['percent'],
+                    'order_type' => 'Limit',
+                    'trade_action' => $this->close_position
+                ]]);
+            }
 
             if ($is_filled || $this->aboutToClose())
                 break;
         }
+
+        DefensiveTrader::removeFromCurrentlyTrading($this->stock['symbol']);
 
         if (!$is_filled) {
             $this->stock['quantity'] = $this->trade_station->getExecQuantity($this->stock['order_id']);
@@ -130,7 +145,6 @@ class Sequence
         return (new Ndate)->minutesUntil($this->bell) < CLOSING_TOLERANCE;
     }
 
-
     private function waitFilling(int $secs)
     {
         $start = time();
@@ -151,8 +165,13 @@ class Sequence
             echo "Limit: $limit_status \n";
             echo "StopLoss: $stop_status \n";
 
-            if ($stop_status == 'REJ')
+            if ($stop_status == 'REJ') {
                 echo "Stoploss rejected because: {$stop_order['RejectReason']}\n";
+
+                if (str_contains($stop_order['RejectReason'], 'Invalid Stop Price'))
+                    throw new InvalidStopPrice;
+            }
+
 
             /**
              * @todo handle limit_order rejection
@@ -187,5 +206,13 @@ class Sequence
     public function getStock(): array
     {
         return $this->stock;
+    }
+}
+
+class InvalidStopPrice extends Exception
+{
+    public function __construct()
+    {
+        parent::__construct("Invalid Stop Price", 500);
     }
 }

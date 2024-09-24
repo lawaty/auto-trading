@@ -11,27 +11,12 @@ class Test extends Endpoint
 
   public function handle(): Response
   {
-    $trade_station = new DemoTradeStation('buy');
-
     $cache = ArteCache::getInst();
-    $cache->install($trade_station, [
-      'today_orders' => ['getTodayOrders', 300],
-      'balance' => ['getBalance', 300],
-      'buying_power' => 'getBuyingPower',
-      'stock' => 'getStock',
-      'stock_price' => 'getStockEstimatedPrice',
-      'order' => 'getOrder',
-      'order_quantity' => 'getExecQuantity'
-    ]);
+    $path = $cache->export(5);
 
-    $start = time();
-    $cache->get('today_orders');
-    $cache->get('balance');
-    $cache->get('buying_power');
-    $cache->get('stock', 'RUN');
-    $cache->get('stock_price', 'RUN');
-
-
+    for($i = 0; $i < 7; $i++)
+      if($cache->import($path))
+        echo "Imported <br>";
 
     return new Response;
   }

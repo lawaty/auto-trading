@@ -13,16 +13,19 @@ class Timing
 
   public function waitTill(mixed $date): void
   {
+    // return ; // stub
+
     if (!($date instanceof Ndate))
       $date = new Ndate($date);
 
     $till_date = min(max((new Ndate)->secondsUntil($date), 1), 5 * 60 * 60);
     $tomorrow_1am = (new Ndate('01:00:00'))->addDays(1);
     $till_tomorrow = (new Ndate)->secondsUntil($tomorrow_1am);
+
     if ($till_tomorrow <= $till_date)
       $this->restartTomorrow();
     else {
-      echo "Waiting $till_date secs ...\n";
+      echo "Waiting $till_date secs at ".(new Ndate)->format(Ndate::DATE_TIME)." ...\n";
       sleep($till_date);
     }
   }
@@ -45,6 +48,8 @@ class Timing
 
   public function marketReady()
   {
+    // return true; // stub
+
     if ($this->config['globals']['is_holiday'])
       return false;
 

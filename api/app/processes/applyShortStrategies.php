@@ -19,23 +19,21 @@ while (true) {
   $initiator->refresh();
 
   if ($timing->marketReady()) {
-    $cache_path = '';
     foreach ($config['short'] as $n => $run) {
-      @unlink($cache_path);
       $right_before_run = $timing->getMarketTime()->addMinutes($run['trade_after'] - 1);
 
       if ((new Ndate)->minutesUntil($right_before_run) < -5) {
         echo "Ignoring Run " . $n + 1 . "\n";
         continue;
       }
-      
+
       $timing->waitTill($right_before_run);
       $processes = $initiator->prepare($run);
-      $cache_path = $cache->export();
       $timing->waitTillRun($run);
 
       $start = microtime(true);
       $stocks = $cache->get('stocks', [$run['sid'], 'short', $run['number_of_trades']]);
+      $cache_path = $cache->export(count($stocks));
 
       // Preparing logs
       foreach ($stocks as $i => $stock) {
@@ -44,19 +42,23 @@ while (true) {
           'cache' => $cache_path,
           'budget' => $run['buying_power_percent'] * $cache->get('buying_power') / count($stocks),
           'stop_loss_percent' => $run['stop_loss_percent'],
-          'sequences' => $run['sequences']
+          'sequences' => $run['sequences'],
+          'sid' => $run['sid']
         ];
 
         $processes[$i]->passArgs($process_args, true);
+        echo "Trading {$stock['symbol']}\n";
         $processes[$i]->run(Process::BACKGROUND);
+        echo "\n";
       }
 
       $time_taken = microtime(true) - $start;
       echo "$time_taken secs in initializing runs\n";
-    }
 
-    echo "Cache Loading Logs:\n";
-    prettyPrint($cache->logs);
+      echo "Cache Loading Logs:\n";
+      prettyPrint($cache->logs);
+      $cache->logs = [];
+    }
     $timing->waitTill($config['globals']['until']);
   } else {
     $timing->waitTill($timing->getMarketTime());

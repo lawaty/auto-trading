@@ -71,6 +71,9 @@ class Initiator
       $processes[] = $process;
     }
 
+    prettyPrint($this->cache->logs);
+    $this->cache->logs = [];
+
     echo "Finished Preparing at " . (new Ndate)->format(Ndate::DATE_TIME) . " ...\n";
 
     return $processes;

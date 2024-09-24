@@ -17,19 +17,23 @@ class DefensiveTrader
   private int $quantity = 0;
   private ?int $failed_quantity = null;
   private ?int $order_id = null;
+  private int $sid;
+  private float $filled_price = 0;
 
-  public function __construct(TradeStation $trade_station, array $stock, string $order_type, string $action_type)
+  public function __construct(TradeStation $trade_station, array $stock, string $order_type, string $action_type, int $sid)
   {
     $this->trade_station = $trade_station;
     $this->stock = $stock;
     $this->order_type = $order_type;
     $this->action_type = $action_type;
     $this->stock['price'] = $this->trade_station->getStockEstimatedPrice($stock['symbol'], $this->order_type, $this->action_type);
+    $this->sid = $sid;
   }
 
-  public function changeStock(int $sid) {
+  public function changeStock()
+  {
     $stock_monitor = new StockMonitor;
-    $symbol = $stock_monitor->getStocks($sid, $this->action_type == 'BUY' ? 'buy' : 'short', 1, [$this->stock['symbol']])[0]['symbol'];
+    $symbol = $stock_monitor->getStocks($this->sid, $this->action_type == 'BUY' ? 'buy' : 'short', 1, [$this->stock['symbol']])[0]['symbol'];
     $this->stock = $this->trade_station->getStock($symbol);
     $this->stock['symbol'] = $symbol;
     $this->stock['price'] = $this->trade_station->getStockEstimatedPrice($symbol, $this->order_type, $this->action_type);
@@ -37,7 +41,8 @@ class DefensiveTrader
     echo "Switched buyer to stock {$this->stock['symbol']}\n";
   }
 
-  public function setMaxQuantity(int $quantity) {
+  public function setMaxQuantity(int $quantity)
+  {
     $this->max_quantity = $quantity;
   }
 
@@ -51,7 +56,7 @@ class DefensiveTrader
     $cache = ArteCache::getInst();
     $is_filled = false;
     do {
-      $buying_power = $cache->get('buying_power');
+      $buying_power = $cache->get('buying_power', [], true);
       if ($buying_power < $this->budget)
         $this->budget = $buying_power;
 
@@ -59,7 +64,7 @@ class DefensiveTrader
       echo "Buying Power: $buying_power, Budget: {$this->budget}\n";
 
       $this->quantity = floor($budget / $this->stock['price']);
-      if($this->max_quantity && $this->max_quantity < $this->quantity)
+      if ($this->max_quantity && $this->max_quantity < $this->quantity)
         $this->quantity = $this->max_quantity;
 
       if (isset($this->failed_quantity))
@@ -85,18 +90,22 @@ class DefensiveTrader
         if ($order['Status'] == 'FLL') {
           $is_filled = true;
           $this->stock['price'] = $order['FilledPrice'];
-          $total = $order['FilledPrice'] * $this->quantity;
+          $this->filled_price = $order['FilledPrice'] * $this->quantity;
 
-          echo "{$this->action_type} Filled With Price: {$this->stock['price']} to spend a total of {$total}\n";
+          echo "{$this->action_type} Filled With Price: {$this->stock['price']} to spend a total of {$this->filled_price}\n";
+
+          self::addtoCurrentlyTrading($this->stock['symbol']);
 
           $order_processed = true;
         } else if ($order['Status'] == 'REJ') {
           echo "{$this->action_type} Rejected because: {$order['RejectReason']}\n";
-          preg_match('/current Buying Power values of \$([-\d,\.]+) for Day Trade and \$([-\d,\.]+) for Overnight Buying Power./', $order['RejectReason'], $matches);
-          if (isset($matches[1])) {
+          preg_match('/current Buying Power values of \$([-\d,\.]+) for Day Trade and \$([-\d,\.]+) for Overnight Buying Power./', $order['RejectReason'], $buying_power_matches);
+
+          if (isset($buying_power_matches[1])) {
             $this->failed_quantity = $this->quantity;
-            $this->budget = (int) str_replace(',', '', $matches[1]) * self::REDUCTION_FACTOR;
-          }
+            $this->budget = (int) str_replace(',', '', $buying_power_matches[1]) * self::REDUCTION_FACTOR;
+          } else
+            throw new Rejected;
 
           $order_processed = true;
         }
@@ -115,11 +124,50 @@ class DefensiveTrader
     return $this->stock;
   }
 
-  public function getQuantity(): int {
+  public function getQuantity(): int
+  {
     return $this->quantity;
+  }
+
+  public function getFilledPrice(): float
+  {
+    return $this->filled_price;
+  }
+
+  public static function addtoCurrentlyTrading(string $symbol): void
+  {
+    // Mutex Lock
+    while (file_exists(TMP_DIR . '/currently_trading.lock'))
+      sleep(1);
+    touch(TMP_DIR . '/currently_trading.lock');
+
+    $currently_trading = json_decode(file_get_contents(JSONS_DIR . '/currently_trading.json'), true);
+    $currently_trading[] = $symbol;
+    file_put_contents(JSONS_DIR . '/currently_trading.json', json_encode($currently_trading));
+
+    unlink(TMP_DIR . '/currently_trading.lock');
+  }
+
+  public static function removeFromCurrentlyTrading(string $symbol): void
+  {
+    // Mutex Lock
+    while (file_exists(TMP_DIR . '/currently_trading.lock'))
+      sleep(1);
+    touch(TMP_DIR . '/currently_trading.lock');
+
+    $currently_trading = json_decode(file_get_contents(JSONS_DIR . '/currently_trading.json'), true);
+    @$currently_trading = array_values(array_diff($currently_trading, [$symbol]));
+    file_put_contents(JSONS_DIR . '/currently_trading.json', json_encode($currently_trading));
+
+    unlink(TMP_DIR . '/currently_trading.lock');
+  }
+
+  public static function emptyCurrentlyTrading(): void
+  {
+    file_put_contents(JSONS_DIR . '/currently_trading.json', '[]');
   }
 }
 
-class OrderFailed extends Exception
-{
-}
+class OrderFailed extends Exception {}
+
+class Rejected extends Exception {}

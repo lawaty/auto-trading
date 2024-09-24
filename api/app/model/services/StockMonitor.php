@@ -4,10 +4,8 @@ class StockMonitor
 {
     const BUY = 1;
     const SELL = 2;
-    private array $filter_data;
     private string $cookie = '';
     private array $signals;
-    private Ndate $cookie_refreshed_at;
     /**
      * @var array<Ndate> $conds_refreshed_at
      */
@@ -68,6 +66,9 @@ class StockMonitor
         $trs = $dom->getElementsByTagName('tr');
 
         $this->signals = [];
+        /**
+         * @var \DOMElement
+         */
         foreach ($trs as $tr) {
             $td = $tr->getElementsByTagName('td')->item(1);
             if ($td) {
@@ -148,6 +149,11 @@ class StockMonitor
         $table_html = json_decode($response->getBody(), true)['html'];
         $stocks = Parser::getDataFromTable($table_html);
 
+        if(!$excluded)
+            $excluded = [];
+
+        array_push($excluded, ...json_decode(file_get_contents(JSONS_DIR .'/currently_trading.json'), true));
+        
         $filters = Config::getInst()['globals']['excluded'];
         if (!empty($excluded))
             array_push($filters, ...$excluded);

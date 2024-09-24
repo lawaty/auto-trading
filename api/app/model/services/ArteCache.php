@@ -9,7 +9,13 @@ class ArteCache
   private static ?ArteCache $inst = null;
   public array $logs = [];
 
-  const DEFAULT_TTL = 120; // seconds
+  const DEFAULT_TTL = 300; // seconds
+
+  public function __construct()
+  {
+    if (isset(self::$inst))
+      return self::$inst;
+  }
 
   // Singleton pattern
   public static function getInst(): ArteCache
@@ -59,28 +65,46 @@ class ArteCache
   // Get cached data or fetch if needed
   public function get(string $key, array $args = [], bool $force_reload = false): mixed
   {
-    $start = microtime(true);
-    if (!$this->isRegistered($key)) {
+    if (!$this->isRegistered($key))
       throw new UnregisteredLoader($key);
-    }
 
-    // Generate a unique cache key based on the method name and arguments
     $cache_key = $this->generateCacheKey($key, $args);
 
     if ($force_reload || !isset($this->data[$cache_key]) || $this->isExpired($cache_key)) {
+      $start = microtime(true);
       $this->data[$cache_key] = call_user_func_array($this->loaders[$key], $args);
+      $taken_time = microtime(true) - $start;
       $this->fetched_at[$cache_key] = new Ndate();
-    }
 
-    $taken_time = microtime(true) - $start;
-    if ($taken_time < 0.1)
-      $taken_time = 0;
-    $this->logs[] = "loaded $key in $taken_time secs at " . (new Ndate)->format(Ndate::DATE_TIME);
+      if ($taken_time < 0.001)
+        $taken_time = 0;
+
+      foreach ($args as &$arg)
+        $arg = json_encode($arg);
+
+      $this->logs[] = "loaded $key(" . implode(', ', array_values($args)) . ") in $taken_time secs at " . (new Ndate)->format(Ndate::DATE_TIME);
+    } else
+      $this->logs[] = "loaded $key(" . implode(', ', array_values($args)) . ") from cache at " . (new Ndate)->format(Ndate::DATE_TIME);
+
+    foreach ($args as &$arg)
+      $arg = json_encode($arg);
     return $this->data[$cache_key];
+  }
+
+  private function recursive_strval(mixed $data)
+  {
+    return array_map(function ($value) {
+      if (is_array($value)) {
+        return $this->recursive_strval($value); // Recursive call for nested arrays
+      } else {
+        return strval($value); // Convert non-array value to string
+      }
+    }, $data);
   }
 
   private function generateCacheKey(string $key, array $args): string
   {
+    $args = $this->recursive_strval($args);
     return $key . ':' . md5(serialize($args));
   }
 
@@ -107,13 +131,16 @@ class ArteCache
   }
 
   // Export cache data to a file
-  public function export(string $path = null): string
+  public function export(int $no_imports = 1): string
   {
     do {
       $path = TMP_DIR . '/' . md5(microtime(true) . random_int(1, 99999)) . '.json';
     } while (file_exists($path));
 
-    $exportData = [];
+    $exportData = [
+      '#imports' => $no_imports
+    ];
+
     foreach ($this->data as $key => $val) {
       $exportData[$key] = [
         'data' => $val,
@@ -125,12 +152,16 @@ class ArteCache
   }
 
   // Import cache data from a file
-  public function import(string $path): void
+  public function import(string $path): bool
   {
     if (!file_exists($path)) {
       echo "WARNING: Couldn't load cache from $path because it doesn't exist\n";
-      return;
+      return false;
     }
+
+    while (file_exists($path . '.lock'))
+      usleep(1000);
+    touch($path . '.lock');
 
     $cached_data = json_decode(file_get_contents($path), true);
     foreach ($cached_data as $key => $info) {
@@ -143,6 +174,14 @@ class ArteCache
         }
       }
     }
+
+    if (--$cached_data['#imports'] == 0)
+      unlink($path);
+    else
+      file_put_contents($path, json_encode($cached_data));
+
+    unlink($path . '.lock');
+    return true;
   }
 }
 

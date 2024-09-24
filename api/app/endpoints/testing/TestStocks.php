@@ -10,7 +10,17 @@ class TestStocks extends Endpoint
   public function handle(): Response
   {
     $stock_monitor = new StockMonitor();
-    $stock_monitor->initFilter(StockMonitor::BUY);
-    return new Response($stock_monitor->getStocks(StockMonitor::BUY));
+    $cache = ArteCache::getInst();
+
+    $cache->get('stockmonitor_cookie', [], true);
+    $cache->get('conds', [84838], true);
+    $cache->get('runId', [84838], true);
+
+    $start = microtime(true);
+    $cache->get('stocks', [84838, StockMonitor::BUY]);
+    echo microtime(true) - $start;
+
+    prettyPrint($cache->logs);
+    return new Response();
   }
 }

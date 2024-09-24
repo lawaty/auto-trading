@@ -14,6 +14,7 @@ class Start extends Authenticated
     if (!count(Process::getAllByName('updateMarketTiming'))) {
       $new_process = new Process("updateMarketTiming", LOG_DIR . '/market-timing-' . (new Ndate)->format(Ndate::DATE) . '.log');
       $new_process->run(Process::BACKGROUND);
+      sleep(10);
     }
 
     if ($day = DayMapper::get(['date' => (new Ndate)->format('d-m-Y')]))

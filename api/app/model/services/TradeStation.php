@@ -83,11 +83,11 @@ class TradeStation
         $response = $curl->send($type, $data, $logging)->getBody();
         if (isJson($response))
             $response =  json_decode($response, true);
-        
+
         $error = $response['Errors'] ?? $response['Error'] ?? null;
-        if($error)
+        if ($error)
             var_dump($response);
-        
+
         return $response;
     }
 
@@ -169,7 +169,7 @@ class TradeStation
         $headers = [
             'content-type' => 'application/json'
         ];
-        
+
         $data = [
             "AccountID" => $account_id,
             "Symbol" => $stock_symbol,
@@ -270,11 +270,17 @@ class TradeStation
 
             $operation['percent'] += 1;
 
-            /**
-             * @todo handle very small percentages
-             */
+            if ($this->which == 'buy')
+                $price = floor($operation['percent'] * $stock['price'] * 100) / 100;
+            else
+                $price = ceil($operation['percent'] * $stock['price'] * 100) / 100;
+            
+            $price = number_format($price, 2, '.', '');
 
-            $price = round($stock['price'] * $operation['percent'], 2);
+            echo "\n\n";
+            var_dump($this->which, $operation['percent'], $stock['price'], $price);
+            echo "\n\n";
+
             $order_data = [
                 "AccountID" => $account_id,
                 "Symbol" => $stock['symbol'],
@@ -343,7 +349,13 @@ class TradeStation
         $temp = $stock;
         if (isset($data['percent'])) {
             $data['percent'] += 1;
-            $temp['price'] = round($data['percent'] * $stock['price'], 2);
+            if ($this->which == 'buy')
+                $temp['price'] = floor($data['percent'] * $stock['price'] * 100) / 100;
+            else if ($this->which == 'short')
+                $temp['price'] = ceil($data['percent'] * $stock['price'] * 100) / 100;
+
+            $temp['price'] = number_format($temp['price'], 2, '.', '');
+
             if ($data['order_type'] == 'Limit')
                 $data['LimitPrice'] = "{$temp['price']}";
             else if ($data['order_type'] == 'StopMarket')

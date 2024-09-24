@@ -40,25 +40,16 @@ while (true) {
     $nodes = $xpath->query($query);
 
     // Holiday Check
-    if (preg_match('/isholiday\s*=\s*(true|false)/i', $html, $matches)) {
-      $isholiday = ($matches[1] === 'true');
+    preg_match('/isholiday\s*=\s*(true|false)/i', $html, $matches1);
+    preg_match('/weekend\s*=\s*(true|false)/i', $html, $matches2);
+    if ($matches1[1] === 'true' || $matches2[1] === 'true') {
+      $isholiday = true;
     } else {
       $holidays = extractHolidays($dom);
       $isholiday = in_array((new Ndate())->format(), $holidays);
     }
 
-
-
-    if ($isholiday){
-      restartTomorrow();
-
-      // Negative Section
-      echo "Negative Section Reached !!\n";
-      continue;
-    }
-
-    echo "Today is not a holiday. Checking Open Time ...\n";
-
+    // Updating Configurations
     if ($nodes->length > 0) {
       $firstRow = $nodes->item(0);
       $data = $firstRow->childNodes;
@@ -101,6 +92,17 @@ while (true) {
     echo "Status: $status\tNext bell rings in $till_event mins \n";
     echo "Market Timing is Updated — at " . $now->format(Ndate::DATE_TIME) . "\n";
 
+
+    if ($isholiday) {
+      restartTomorrow();
+
+      // Negative Section
+      echo "Negative Section Reached !!\n";
+      continue;
+    }
+
+    echo "Today is not a holiday. Checking Open Time ...\n";
+
     $wait_time = min($max_wait, ($till_event));
 
     echo "Waiting $wait_time mins till next update.\n\n";
@@ -122,7 +124,7 @@ function extractHolidays(DomDocument $dom): array
 
   $holidays = [];
   /**
-   * @var DOMNode
+   * @var \DOMElement
    */
   foreach ($holidayRows as $row) {
     $cells = $row->getElementsByTagName('td');

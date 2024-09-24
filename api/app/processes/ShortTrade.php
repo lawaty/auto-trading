@@ -21,7 +21,7 @@ echo "Started trading for {$args['symbol']} at " . (new Ndate)->format(Ndate::DA
 
 $stock = $cache->get('stock', [$args['symbol']]);
 $stock['symbol'] = $args['symbol'];
-$buyer = new DefensiveTrader($tradestation, $stock, 'Market', 'SELLSHORT');
+$buyer = new DefensiveTrader($tradestation, $stock, 'Market', 'SELLSHORT', $args['sid']);
 $buyer->setBudget($args['budget']);
 if (isset($args['max_quantity']))
   $buyer->setMaxQuantity($args['max_quantity']);
@@ -31,20 +31,25 @@ echo "$time_taken secs taken to initialize the process.\n";
 
 $start = microtime(true);
 
-try {
-  $buyer->run();
-  $time_taken = microtime(true) - $start;
-  echo "$time_taken secs taken to order in tradestation.\n";
-} catch (InsufficientMoney $e) {
-  echo "Couldn't sellshort any stocks. Leaving...\n";
-  $time_taken = microtime(true) - $start;
-  echo "$time_taken secs taken to order in tradestation.\n";
-  exit;
-} catch (OrderFailed $e) {
-  echo "Setting Order Failed: {$e->getMessage()}\n";
-  $time_taken = microtime(true) - $start;
-  echo "$time_taken secs taken to order in tradestation.\n";
-  exit;
+while (true) {
+  try {
+    $buyer->run();
+    $time_taken = microtime(true) - $start;
+    echo "$time_taken secs taken to order in tradestation.\n";
+    break;
+  } catch (InsufficientMoney $e) {
+    echo "Couldn't sellshort any stocks. Leaving...\n";
+    $time_taken = microtime(true) - $start;
+    echo "$time_taken secs taken to order in tradestation.\n";
+    exit;
+  } catch (OrderFailed $e) {
+    echo "Setting Order Failed: {$e->getMessage()}\n";
+    $time_taken = microtime(true) - $start;
+    echo "$time_taken secs taken to order in tradestation.\n";
+    exit;
+  } catch (Rejected $e) {
+    $buyer->changeStock();
+  }
 }
 
 $args['stock'] = $buyer->getStock();
@@ -55,8 +60,9 @@ $sequence = new Sequence($args, 'short');
 $sequence->run();
 
 if (!isset($args['no-revert']) && $sequence->getStatus() == Sequence::STOPLOSS) {
-  $stock = $sequence->getStock();
-  $log_dir = APP_DIR . "/processes/logs/buy/" . (new Ndate)->format();
+  new StockMonitor;
+  $stock = $cache->get('stocks', [$args['sid'], 'short', 1, [$args['symbol']]])[0];
+  $log_dir = APP_DIR . "/processes/logs/short/" . (new Ndate)->format();
   if (!is_dir($log_dir))
     mkdir($log_dir);
 
@@ -67,13 +73,12 @@ if (!isset($args['no-revert']) && $sequence->getStatus() == Sequence::STOPLOSS) 
   $log_file = $log_dir . '/' . $stock['symbol'] . "(stoploss)-$j.log";
   file_put_contents($log_file, "");
 
-  $process = new Process("BuyTrade", $log_file);
-  $args = Config::getInst()->toArray()['short-loss'];
-  $args['budget'] = (new TradeStation('buy'))->getBuyingPower();
-  $args['symbol'] = $stock['symbol'];
-  $args['max_quantity'] = $buyer->getQuantity() * 2;
-  $args['no-revert'] = true;
-  $process->passArgs($args, true);
+  $process = new Process("ShortTrade", $log_file);
+  $process_args = $args;  
+  $process_args['symbol'] = $stock['symbol'];
+  $process_args['budget'] = $buyer->getFilledPrice() * 2;
+  $process_args['no-revert'] = true;
+  $process->passArgs($process_args, true);
   $process->run(Process::BACKGROUND);
 }
 
