@@ -2,6 +2,8 @@
 
 require_once __DIR__ . "../../../autoload.php";
 
+$process_date = new Ndate('01:00:00');
+
 function restart()
 {
   $new_process = new Process("updateMarketTiming", LOG_DIR . '/market-timing-' . (new Ndate)->format(Ndate::DATE) . '.log');
@@ -12,8 +14,10 @@ function restart()
 
 function restartTomorrow()
 {
+  $process_date = $GLOBALS['process_date'];
   echo "Today is a holiday. The market is closed.\n";
-  $restart_at = (new Ndate('01:00:00'))->addDays(1);
+  $restart_at = $process_date;
+  $restart_at->addDays(1);
 
   // Wait until 1 am tomorrow to restart
   $wait_time = (new Ndate())->minutesUntil($restart_at);
@@ -71,6 +75,7 @@ while (true) {
     else {
       $event_at = $open_time;
       $event_at->addDays(1);
+      $close_time->addDays(1);
     }
 
     $all_params = json_decode(file_get_contents(JSONS_DIR . '/params.json'), true);
@@ -81,13 +86,15 @@ while (true) {
     $all_params['globals']['is_holiday'] = $isholiday;
     $all_params['globals']['status'] = $status;
     $all_params['globals']['open_time'] = $open_time->format(Ndate::DATE_TIME);
+    $all_params['globals']['close_time'] = $close_time->format(Ndate::DATE_TIME);
     $all_params['globals']['until'] = $event_at->format(Ndate::DATE_TIME);
     echo "Status: $status\nOpen At: {$open_time->format(Ndate::DATE_TIME)}\nNext Event: {$event_at->format(Ndate::DATE_TIME)}\n";
     file_put_contents(JSONS_DIR . '/params.json', json_encode($all_params));
 
-    $restart_at = (new Ndate('01:00:00'))->addDays(1);
+    $restart_at = $process_date;
+    $restart_at->addDays(1);
     $till_event = $now->minutesUntil($event_at);
-    $max_wait = 60 * 8;
+    $max_wait = 60 * 3;
 
     echo "Status: $status\tNext bell rings in $till_event mins \n";
     echo "Market Timing is Updated — at " . $now->format(Ndate::DATE_TIME) . "\n";

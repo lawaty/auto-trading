@@ -42,7 +42,8 @@ class Sequence
         $this->parseArgs($argv);
 
         $this->config = Config::getInst();
-        $this->bell = new Ndate($this->config['globals']['until']);
+        $this->config->refresh();
+        $this->bell = new Ndate($this->config['globals']['close_time']);
         $this->trade_station = new TradeStation(ucfirst($this->which));
     }
 
@@ -142,6 +143,8 @@ class Sequence
 
     private function aboutToClose()
     {
+        if ((new Ndate)->minutesUntil($this->bell) < CLOSING_TOLERANCE)
+            echo "Approached Market End\n";
         return (new Ndate)->minutesUntil($this->bell) < CLOSING_TOLERANCE;
     }
 
@@ -171,11 +174,6 @@ class Sequence
                 if (str_contains($stop_order['RejectReason'], 'Invalid Stop Price'))
                     throw new InvalidStopPrice;
             }
-
-
-            /**
-             * @todo handle limit_order rejection
-             */
 
             if ($limit_status == 'FLL' || $stop_status == 'FLL')
                 return [$limit_status, $stop_status, $limit_order['FilledPrice'] ?? -1];

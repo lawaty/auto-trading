@@ -1,6 +1,6 @@
 <?php
 
-class Start extends Authenticated
+class Start extends Endpoint
 {
   public function __construct()
   {
@@ -28,11 +28,15 @@ class Start extends Authenticated
     foreach ($processes as $process)
       $process->shutdown();
 
-    $process = new Process("apply" . $this->request['process'] . "Strategies");
-    $process->setLogger(APP_DIR . '/processes/logs/' . $this->request['process'] . '-' . (new Ndate)->format() . '.log');
+    $log_file = APP_DIR . '/processes/logs/' . $this->request['process'] . '-' . (new Ndate)->format();
+    $i = 1;
+    while (file_exists($log_file . "($i).log"))
+      $i++;
+
+    $process = new Process("apply" . $this->request['process'] . "Strategies", $log_file . " ($i).log");
     $response = $process->run(Process::BACKGROUND);
     $processes = Process::getAllByName("apply" . $this->request['process'] . "Strategies");
-    foreach($processes as &$process)
+    foreach ($processes as &$process)
       $process = $process->getPID();
 
     return new Response($response);

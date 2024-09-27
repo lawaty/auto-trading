@@ -78,7 +78,7 @@ if (!isset($args['no-revert']) && $sequence->getStatus() == Sequence::STOPLOSS) 
   $process = new Process("BuyTrade", $log_file);
   $process_args = $args;
   $process_args['symbol'] = $stock['symbol'];
-  $process_args['budget'] = $buyer->getFilledPrice() * 2;
+  $process_args['budget'] = $buyer->getFilledPrice();
   $process_args['no-revert'] = true;
   $process->passArgs($process_args, true);
   $process->run(Process::BACKGROUND);

@@ -88,6 +88,12 @@ class TradeStation
         if ($error)
             var_dump($response);
 
+        if ($error == 'TooManyRequests') {
+            
+            sleep(10);
+            return $this->curl($url, $type, $data, $headers);
+        }
+
         return $response;
     }
 
@@ -270,15 +276,15 @@ class TradeStation
 
             $operation['percent'] += 1;
 
-            if ($this->which == 'buy')
+            if ($operation['percent'] < 1)
                 $price = floor($operation['percent'] * $stock['price'] * 100) / 100;
             else
                 $price = ceil($operation['percent'] * $stock['price'] * 100) / 100;
-            
+
             $price = number_format($price, 2, '.', '');
 
             echo "\n\n";
-            var_dump($this->which, $operation['percent'], $stock['price'], $price);
+            var_dump($operation['percent'], $stock['price'], $price);
             echo "\n\n";
 
             $order_data = [
@@ -349,12 +355,16 @@ class TradeStation
         $temp = $stock;
         if (isset($data['percent'])) {
             $data['percent'] += 1;
-            if ($this->which == 'buy')
+            if ($data['percent'] < 1)
                 $temp['price'] = floor($data['percent'] * $stock['price'] * 100) / 100;
-            else if ($this->which == 'short')
+            else
                 $temp['price'] = ceil($data['percent'] * $stock['price'] * 100) / 100;
 
             $temp['price'] = number_format($temp['price'], 2, '.', '');
+
+            echo "\n\n";
+            var_dump($data['percent'], $stock['price'], $temp['price']);
+            echo "\n\n";
 
             if ($data['order_type'] == 'Limit')
                 $data['LimitPrice'] = "{$temp['price']}";

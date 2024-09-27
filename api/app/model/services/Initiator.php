@@ -41,7 +41,6 @@ class Initiator
   {
     echo "Preparing Bot Trader... at " . (new Ndate)->format(Ndate::DATE_TIME) . "\n";
 
-    # TODO: call this before every run
     $this->config->refresh();
     StockLogger::emptyStock(ucfirst($this->which));
     if ($this->config['globals']['money_format'] == 1) // Full buying power

@@ -11,13 +11,12 @@ class Test extends Endpoint
 
   public function handle(): Response
   {
-    $cache = ArteCache::getInst();
-    $path = $cache->export(5);
-
-    for($i = 0; $i < 7; $i++)
-      if($cache->import($path))
-        echo "Imported <br>";
-
+    $config = Config::getInst();
+    $config->refresh();
+    $bell = new Ndate($config['globals']['close_time']);
+    var_dump(new Ndate);
+    var_dump($bell);
+    var_dump((new Ndate)->minutesUntil($bell));
     return new Response;
   }
 }
