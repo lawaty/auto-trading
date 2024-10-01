@@ -84,6 +84,7 @@ class DefensiveTrader
 
       $order_processed = false;
       while (!$order_processed) {
+        $start = microtime(true);
         $order = $this->trade_station->getOrder($this->order_id);
         echo "{$this->action_type} Status: {$order['Status']}\n";
 
@@ -109,6 +110,8 @@ class DefensiveTrader
 
           $order_processed = true;
         }
+
+        sleep(max(3 - (microtime(true) - $start), 0));
       }
 
       sleep(1);

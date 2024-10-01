@@ -11,12 +11,8 @@ class Test extends Endpoint
 
   public function handle(): Response
   {
-    $config = Config::getInst();
-    $config->refresh();
-    $bell = new Ndate($config['globals']['close_time']);
-    var_dump(new Ndate);
-    var_dump($bell);
-    var_dump((new Ndate)->minutesUntil($bell));
-    return new Response;
+    $stock_monitor = new StockMonitor;
+    $stocks = $stock_monitor->getStocks(86299, 'short', null, null ,null, 'DESC');
+    return new Response(array_column($stocks, 'symbol'));
   }
 }

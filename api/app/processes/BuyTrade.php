@@ -13,9 +13,10 @@ $start = microtime(true);
 // Preparing Cache
 $cache = ArteCache::getInst();
 $tradestation = new TradeStation('buy');
-$tradestation->installCache();
-if (isset($args['cache']))
+if (isset($args['cache'])) {
+  echo "Loading Cached Data\n";
   $cache->import($args['cache']);
+}
 
 echo "Started trading for {$args['symbol']} at " . (new Ndate)->format(Ndate::DATE_TIME) . "\n";
 
@@ -50,6 +51,7 @@ while (true) {
     echo "$time_taken secs taken to order in tradestation.\n";
     exit;
   } catch (Rejected $e) {
+    $buyer::addtoCurrentlyTrading($symbol);
     $buyer->changeStock();
   }
 }
@@ -63,7 +65,7 @@ $sequence->run();
 
 if (!isset($args['no-revert']) && $sequence->getStatus() == Sequence::STOPLOSS) {
   new StockMonitor;
-  $stock = $cache->get('stocks', [$args['sid'], 'buy', 1, [$args['symbol']]])[0];
+  $stock = $cache->get('stocks', [$args['sid'], 'buy', 1, [$args['symbol']], null, $args['dir']])[0];
   $log_dir = APP_DIR . "/processes/logs/buy/" . (new Ndate)->format();
   if (!is_dir($log_dir))
     mkdir($log_dir);
@@ -77,6 +79,7 @@ if (!isset($args['no-revert']) && $sequence->getStatus() == Sequence::STOPLOSS) 
 
   $process = new Process("BuyTrade", $log_file);
   $process_args = $args;
+  unset($process_args['cache']);
   $process_args['symbol'] = $stock['symbol'];
   $process_args['budget'] = $buyer->getFilledPrice();
   $process_args['no-revert'] = true;

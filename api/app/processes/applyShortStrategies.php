@@ -32,7 +32,11 @@ while (true) {
       $timing->waitTillRun($run);
 
       $start = microtime(true);
-      $stocks = $cache->get('stocks', [$run['sid'], 'short', $run['number_of_trades']]);
+
+      if(!isset($run['dir']))
+        $run['dir'] = null;
+      $stocks = $cache->get('stocks', [$run['sid'], 'short', $run['number_of_trades'], null, null, $run['dir']]);
+      
       $cache_path = $cache->export(count($stocks));
 
       // Preparing logs
@@ -43,7 +47,8 @@ while (true) {
           'budget' => $run['buying_power_percent'] * $cache->get('buying_power') / count($stocks),
           'stop_loss_percent' => $run['stop_loss_percent'],
           'sequences' => $run['sequences'],
-          'sid' => $run['sid']
+          'sid' => $run['sid'],
+          'dir' => $run['dir'] ?? null
         ];
 
         $processes[$i]->passArgs($process_args, true);

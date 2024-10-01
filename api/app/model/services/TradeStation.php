@@ -19,14 +19,13 @@ class TradeStation
     {
         $this->which = $which;
         $this->loadSettings();
-        ArteCache::getInst()->install($this, [
-            'tradestation_access_token' => 'getAccessToken'
-        ]);
+        $this->installCache();
     }
 
     public function installCache(): void
     {
         ArteCache::getInst()->install($this, [
+            'tradestation_access_token' => ['getAccessToken', 150],
             'today_orders' => 'getTodayOrders',
             'balance' => 'getBalance',
             'buying_power' => 'getBuyingPower',
@@ -89,7 +88,7 @@ class TradeStation
             var_dump($response);
 
         if ($error == 'TooManyRequests') {
-            
+
             sleep(10);
             return $this->curl($url, $type, $data, $headers);
         }

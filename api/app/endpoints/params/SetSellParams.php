@@ -17,7 +17,8 @@ class SetSellParams extends Endpoint
                     'percent' => [true, Regex::generic(1, 200)],
                     'wait_time' => [true, Regex::generic(1, 200)],
                 ], true],
-                'sid' => [true, Regex::INT]
+                'sid' => [true, Regex::INT],
+                'dir' => [true, "/^(ASC|DESC)$/"]
             ], true],
         ], $_POST);
     }

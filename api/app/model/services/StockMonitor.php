@@ -6,9 +6,6 @@ class StockMonitor
     const SELL = 2;
     private string $cookie = '';
     private array $signals;
-    /**
-     * @var array<Ndate> $conds_refreshed_at
-     */
 
     public function __construct()
     {
@@ -131,19 +128,23 @@ class StockMonitor
         return $this->curl("signal/test/", "POST", $data)->getBody();
     }
 
-    public function getStocks(int $sid, mixed $stock_type, int $limit = null, array $excluded = null, array $included = null): array
+    public function getStocks(int $sid, mixed $stock_type, int $limit = null, array $excluded = null, array $included = null, string $dir = null): array
     {
         $cache = ArteCache::getInst();
         echo "Fetching Stocks... \n";
+        if(!$dir)
+            $dir = $stock_type == static::BUY || $stock_type == "buy" ? 'DESC' : 'ASC';
 
         $filter_data = [
             'page' => 1,
             "orderState" => [
                 "field" => "pchange",
-                'dir' => $stock_type == static::BUY || $stock_type == "buy" ? 'DESC' : 'ASC',
+                'dir' => $dir,
             ],
             'runId' => json_decode($cache->get('runId', [$sid]), true)['data']['runId']
         ];
+
+        var_dump($dir);
 
         $response = $this->curl("signal/test-result-page", "POST", $filter_data);
         $table_html = json_decode($response->getBody(), true)['html'];
@@ -169,6 +170,7 @@ class StockMonitor
 
         if ($limit)
             return array_splice($stocks, 0, $limit);
+
         return $stocks;
     }
 }

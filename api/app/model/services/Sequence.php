@@ -75,19 +75,23 @@ class Sequence
 
             // busy wait until limit is exceeded for all items or wait_time finishes
             echo "Waiting till limit filled or " . $stage_config['wait_time'] . " mins pass\n";
-            try {
-                $is_filled = $this->waitFilling($stage_config['wait_time'] * 60);
-            } catch (InvalidStopPrice $e) {
-                $this->trade_station->cancel($this->stock['limit_id']);
-                [$this->stock['stop_id'], $this->stock['limit_id']] = $this->trade_station->placeOCO($this->stock, [[
-                    'percent' => $this->danger,
-                    'order_type' => 'StopMarket',
-                    'trade_action' => $this->close_position
-                ], [
-                    'percent' => $stage_config['percent'],
-                    'order_type' => 'Limit',
-                    'trade_action' => $this->close_position
-                ]]);
+            $is_filled = null;
+            while ($is_filled === null) {
+                try {
+                    $is_filled = $this->waitFilling($stage_config['wait_time'] * 60);
+                } catch (InvalidStopPrice $e) {
+                    echo "Stoploss rejected. Cancelling limit order and reordering OCO.\n";
+                    $this->trade_station->cancel($this->stock['limit_id']);
+                    [$this->stock['stop_id'], $this->stock['limit_id']] = $this->trade_station->placeOCO($this->stock, [[
+                        'percent' => $this->danger,
+                        'order_type' => 'StopMarket',
+                        'trade_action' => $this->close_position
+                    ], [
+                        'percent' => $stage_config['percent'],
+                        'order_type' => 'Limit',
+                        'trade_action' => $this->close_position
+                    ]]);
+                }
             }
 
             if ($is_filled || $this->aboutToClose())
@@ -145,6 +149,7 @@ class Sequence
     {
         if ((new Ndate)->minutesUntil($this->bell) < CLOSING_TOLERANCE)
             echo "Approached Market End\n";
+
         return (new Ndate)->minutesUntil($this->bell) < CLOSING_TOLERANCE;
     }
 

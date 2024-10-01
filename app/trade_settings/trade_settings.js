@@ -43,7 +43,7 @@ $(document).on('trade_settings-loaded', () => {
 
 
   AJAX.ajax({
-    url: config.API + "/params/buy?debug",
+    url: config.API + "/params/buy",
     type: "GET",
     beforeSend: (xhr) => {
       xhr.setRequestHeader('Authorization', 'Bearer ' + token)
@@ -59,12 +59,14 @@ $(document).on('trade_settings-loaded', () => {
           $("#buy-start").hide()
           $("#buy-stop").show()
         }
+
+        $("[submit=buy_settings]").removeAttr('disabled')
       }
     }
   })
 
   AJAX.ajax({
-    url: config.API + "/params/short?debug",
+    url: config.API + "/params/short",
     type: "GET",
     beforeSend: (xhr) => {
       xhr.setRequestHeader('Authorization', 'Bearer ' + token)
@@ -80,6 +82,8 @@ $(document).on('trade_settings-loaded', () => {
           $("#short-start").hide()
           $("#short-stop").show()
         }
+
+        $("[submit=short_settings]").removeAttr('disabled')
       }
     }
   })
@@ -95,7 +99,8 @@ $(document).on('trade_settings-loaded', () => {
         trade_after: $(container).find('[name=trade_after]').val(),
         stop_loss_percent: $(container).find('[name=stop_loss_percent]').val(),
         sequences: [],
-        sid: $(container).find('[name=sid]').val()
+        sid: $(container).find('[name=sid]').val(),
+        dir: $(container).find('[type=radio]:checked').val()
       }
 
       $(container).find('ul li').each(function (i, li) {
@@ -131,7 +136,8 @@ $(document).on('trade_settings-loaded', () => {
         trade_after: $(container).find('[name=trade_after]').val(),
         stop_loss_percent: $(container).find('[name=stop_loss_percent]').val(),
         sequences: [],
-        sid: $(container).find('[name=sid]').val()
+        sid: $(container).find('[name=sid]').val(),
+        dir: $(container).find('[type=radio]:checked').val()
       }
 
       $(container).find('ul li').each(function (i, li) {
@@ -155,7 +161,7 @@ $(document).on('trade_settings-loaded', () => {
       })
     }
   })
-  
+
   window.loss_settings = new Form($("#loss-settings"))
   window.loss_settings.payload = function () {
     let buy_sequences = []
@@ -205,7 +211,8 @@ function addRun(type, i, run = {
     percent: "",
     wait_time: ""
   }],
-  sid: -1
+  sid: -1,
+  dir: 'ASC'
 }) {
 
   if (window.filters === undefined) {
@@ -254,6 +261,19 @@ function addRun(type, i, run = {
       <select class="form-control" name="sid">
         ${filters_options}
       </select>
+
+      <div class="form-check-inline mt-2">
+        <input class="form-check-input" type="radio" name="${type}-dir-${i}" id="${type}-${i}-asc" value="ASC" ${run.dir != 'DESC' ? 'checked' : ''}>
+        <label class="form-check-label" for="${type}-${i}-asc">
+          Ascending
+        </label>
+      </div>
+      <div class="form-check-inline mt-2">
+        <input class="form-check-input" type="radio" name="${type}-dir-${i}" id="${type}-${i}-desc" value="DESC" ${run.dir == 'DESC' ? 'checked' : ''}>
+        <label class="form-check-label" for="${type}-${i}-desc">
+          Descending
+        </label>
+      </div>
     </div>
   `)
 

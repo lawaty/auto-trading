@@ -12,9 +12,11 @@ class Stop extends Authenticated
   public function handle(): Response
   {
     if (!count(Process::getAllByName('updateMarketTiming'))) {
-      $new_process = new Process("updateMarketTiming");
+      $new_process = new Process("updateMarketTiming", LOG_DIR . '/market-timing-' . (new Ndate)->format(Ndate::DATE) . '.log');
       $new_process->run(Process::BACKGROUND);
+      sleep(10);
     }
+
 
     try {
       $processes = [
