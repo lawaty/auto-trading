@@ -30,7 +30,7 @@ class Start extends Endpoint
 
     $log_file = APP_DIR . '/processes/logs/' . $this->request['process'] . '-' . (new Ndate)->format();
     $i = 1;
-    while (file_exists($log_file . "($i).log"))
+    while (file_exists($log_file . " ($i).log"))
       $i++;
 
     $process = new Process("apply" . $this->request['process'] . "Strategies", $log_file . " ($i).log");

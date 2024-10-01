@@ -22,6 +22,7 @@ echo "Started trading for {$args['symbol']} at " . (new Ndate)->format(Ndate::DA
 
 $stock = $cache->get('stock', [$args['symbol']]);
 $stock['symbol'] = $args['symbol'];
+
 $buyer = new DefensiveTrader($tradestation, $stock, 'Market', 'SELLSHORT', $args['sid']);
 $buyer->setBudget($args['budget']);
 if (isset($args['max_quantity']))
@@ -69,11 +70,11 @@ if (!isset($args['no-revert']) && $sequence->getStatus() == Sequence::STOPLOSS) 
     mkdir($log_dir);
 
   $j = 1;
-  while (file_exists($log_dir . '/' . $stock['symbol'] . "-$j.log"))
+  while (file_exists($log_dir . '/' . $stock['symbol'] . "(stoploss)-$j.log"))
     $j++;
 
   $log_file = $log_dir . '/' . $stock['symbol'] . "(stoploss)-$j.log";
-  file_put_contents($log_file, "");
+  touch($log_file);
 
   $process = new Process("ShortTrade", $log_file);
   $process_args = $args;
