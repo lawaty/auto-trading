@@ -36,6 +36,7 @@ $start = microtime(true);
 while (true) {
   try {
     $buyer->run();
+    $buyer->setOCO('BUYTOCOVER', $args['stop_loss_percent'], $args['sequences'][0]['percent']);
     $time_taken = microtime(true) - $start;
     echo "$time_taken secs taken to order in tradestation.\n";
     break;
@@ -50,14 +51,12 @@ while (true) {
     echo "$time_taken secs taken to order in tradestation.\n";
     exit;
   } catch (Rejected $e) {
-    $buyer::addtoCurrentlyTrading($symbol);
+    $buyer::addtoCurrentlyTrading($stock['symbol']);
     $buyer->changeStock();
   }
 }
 
 $args['stock'] = $buyer->getStock();
-
-echo "Started Sequence for {$args['symbol']} at " . (new Ndate)->format(Ndate::DATE_TIME) . "\n";
 
 $sequence = new Sequence($args, 'short');
 $sequence->run();

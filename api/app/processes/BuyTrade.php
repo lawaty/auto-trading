@@ -36,8 +36,9 @@ $start = microtime(true);
 while (true) {
   try {
     $buyer->run();
+    $buyer->setOCO('SELL', $args['stop_loss_percent'], $args['sequences'][0]['percent']);
     $time_taken = microtime(true) - $start;
-    echo "$time_taken secs taken to order in tradestation.\n";
+    echo "$time_taken secs taken to initialize the trading process in tradestation.\n";
     break;
   } catch (InsufficientMoney $e) {
     echo "Couldn't sellshort any stocks. Leaving...\n";
@@ -50,14 +51,12 @@ while (true) {
     echo "$time_taken secs taken to order in tradestation.\n";
     exit;
   } catch (Rejected $e) {
-    $buyer::addtoCurrentlyTrading($symbol);
+    $buyer::addtoCurrentlyTrading($stock['symbol']);
     $buyer->changeStock();
   }
 }
 
 $args['stock'] = $buyer->getStock();
-
-echo "Started Sequence for {$args['symbol']} at " . (new Ndate)->format(Ndate::DATE_TIME) . "\n";
 
 $sequence = new Sequence($args, 'buy');
 $sequence->run();

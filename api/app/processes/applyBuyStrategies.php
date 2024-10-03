@@ -67,6 +67,6 @@ while (true) {
 
     $timing->waitTill($config['globals']['until']);
   } else {
-    $timing->waitTill($timing->getMarketTime()->addMinutes(-1));
+    $timing->waitTill($timing->getMarketTime()->addMinutes(-2));
   }
 }

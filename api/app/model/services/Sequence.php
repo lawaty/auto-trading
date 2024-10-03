@@ -49,6 +49,8 @@ class Sequence
 
     public function run(): void
     {
+        echo "Started Sequence for {$this->stock['symbol']} at " . (new Ndate)->format(Ndate::DATE_TIME) . "\n";
+
         //////////////////////////// Trading Sequence
         $is_filled = false;
         foreach ($this->stages as $i => $stage_config) {
@@ -56,43 +58,18 @@ class Sequence
             $this->stock['quantity'] = $this->trade_station->getExecQuantity($this->stock['order_id']);
             echo "Actual Executed Quantity: " . $this->stock['quantity'] . "\n";
 
-            if (!isset($this->stock['stop_id'])) {
-                [$this->stock['stop_id'], $this->stock['limit_id']] = $this->trade_station->placeOCO($this->stock, [[
-                    'percent' => $this->danger,
-                    'order_type' => 'StopMarket',
-                    'trade_action' => $this->close_position
-                ], [
-                    'percent' => $stage_config['percent'],
+            // Stage 0 is the base limit price and it is supposed to be already set with the order.
+            if ($i > 0)
+                $this->stock['limit_id'] = $this->trade_station->editOrder($this->stock, $this->stock['limit_id'], [
                     'order_type' => 'Limit',
-                    'trade_action' => $this->close_position
-                ]]);
-            } else if ($order_id = $this->trade_station->editOrder($this->stock, $this->stock['limit_id'], [
-                'order_type' => 'Limit',
-                'trade_action' => $this->close_position,
-                'percent' => $stage_config['percent']
-            ]))
-                $this->stock['limit_id'] = $order_id;
+                    'trade_action' => $this->close_position,
+                    'percent' => $stage_config['percent']
+                ]);
+
 
             // busy wait until limit is exceeded for all items or wait_time finishes
             echo "Waiting till limit filled or " . $stage_config['wait_time'] . " mins pass\n";
-            $is_filled = null;
-            while ($is_filled === null) {
-                try {
-                    $is_filled = $this->waitFilling($stage_config['wait_time'] * 60);
-                } catch (InvalidStopPrice $e) {
-                    echo "Stoploss rejected. Cancelling limit order and reordering OCO.\n";
-                    $this->trade_station->cancel($this->stock['limit_id']);
-                    [$this->stock['stop_id'], $this->stock['limit_id']] = $this->trade_station->placeOCO($this->stock, [[
-                        'percent' => $this->danger,
-                        'order_type' => 'StopMarket',
-                        'trade_action' => $this->close_position
-                    ], [
-                        'percent' => $stage_config['percent'],
-                        'order_type' => 'Limit',
-                        'trade_action' => $this->close_position
-                    ]]);
-                }
-            }
+            $is_filled = $this->waitFilling($stage_config['wait_time'] * 60);
 
             if ($is_filled || $this->aboutToClose())
                 break;
@@ -173,13 +150,6 @@ class Sequence
             echo "Limit: $limit_status \n";
             echo "StopLoss: $stop_status \n";
 
-            if ($stop_status == 'REJ') {
-                echo "Stoploss rejected because: {$stop_order['RejectReason']}\n";
-
-                if (str_contains($stop_order['RejectReason'], 'Invalid Stop Price'))
-                    throw new InvalidStopPrice;
-            }
-
             if ($limit_status == 'FLL' || $stop_status == 'FLL')
                 return [$limit_status, $stop_status, $limit_order['FilledPrice'] ?? -1];
 
@@ -196,7 +166,7 @@ class Sequence
             if ($this->aboutToClose() || $limit_status == 'OUT' && $stop_status == 'OUT')
                 return false;
 
-            sleep(15);
+            sleep(20);
         }
         return false;
     }
@@ -209,13 +179,5 @@ class Sequence
     public function getStock(): array
     {
         return $this->stock;
-    }
-}
-
-class InvalidStopPrice extends Exception
-{
-    public function __construct()
-    {
-        parent::__construct("Invalid Stop Price", 500);
     }
 }

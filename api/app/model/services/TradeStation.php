@@ -88,7 +88,6 @@ class TradeStation
             var_dump($response);
 
         if ($error == 'TooManyRequests') {
-
             sleep(10);
             return $this->curl($url, $type, $data, $headers);
         }
@@ -213,6 +212,7 @@ class TradeStation
 
         if ($order_type != 'Market')
             $stock_price = round($stock['price'] * $percent, 2);
+
         $data = [
             "AccountID" => $account_id,
             "Symbol" => $stock['symbol'],
@@ -242,6 +242,8 @@ class TradeStation
             echo "\n";
             return null;
         }
+
+        echo "$order_type $trade_action with price " . ($stock_price ?? 'N/A') . " at " . (new Ndate)->format(Ndate::DATE_TIME) . " \n";
 
         if (isset($response['Orders'][0]['OrderID']))
             StockLogger::logStock(
@@ -282,8 +284,11 @@ class TradeStation
 
             $price = number_format($price, 2, '.', '');
 
+
+            echo "{$operation['order_type']} {$operation['trade_action']} with price {$stock['price']} at " . (new Ndate)->format(Ndate::DATE_TIME) . " \n";
+
             echo "\n\n";
-            var_dump($operation['percent'], $stock['price'], $price);
+            var_dump($operation['order_type'] . " " . $operation['trade_action'], $operation['percent'], $stock['price'], $price);
             echo "\n\n";
 
             $order_data = [
@@ -361,8 +366,10 @@ class TradeStation
 
             $temp['price'] = number_format($temp['price'], 2, '.', '');
 
+            echo "{$data['order_type']} {$data['trade_action']} with price {$temp['price']} at " . (new Ndate)->format(Ndate::DATE_TIME) . " \n";
+
             echo "\n\n";
-            var_dump($data['percent'], $stock['price'], $temp['price']);
+            var_dump($data['order_type'] . " " . $data['trade_action'], $data['percent'], $stock['price'], $temp['price']);
             echo "\n\n";
 
             if ($data['order_type'] == 'Limit')

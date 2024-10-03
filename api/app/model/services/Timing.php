@@ -54,7 +54,7 @@ class Timing
       return false;
 
     $till_run = (new Ndate)->secondsUntil($this->getMarketTime());
-    return $till_run <= 90;
+    return $till_run <= 300;
   }
 
   public function restartTomorrow()
@@ -67,5 +67,9 @@ class Timing
     $new_process->setLogger(APP_DIR . '/processes/logs/' . ucfirst($this->which) . '-' . (new Ndate)->format() . '.log');
     if ($new_process->run(Process::BACKGROUND))
       exit;
+  }
+
+  public static function sleep(float $secs) {
+    usleep(1000000 * $secs);
   }
 }

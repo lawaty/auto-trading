@@ -55,6 +55,7 @@ class DefensiveTrader
   {
     $cache = ArteCache::getInst();
     $is_filled = false;
+    $trials = 0;
     do {
       $buying_power = $cache->get('buying_power', [], true);
       if ($buying_power < $this->budget)
@@ -82,11 +83,13 @@ class DefensiveTrader
 
       $this->stock['order_id'] = $this->order_id;
 
+      $checking_start = microtime(true);
       $order_processed = false;
+      $dynamic_delay = 0;
       while (!$order_processed) {
-        $start = microtime(true);
+        $inquiry_start = microtime(true);
         $order = $this->trade_station->getOrder($this->order_id);
-        echo "{$this->action_type} Status: {$order['Status']}\n";
+        echo "{$this->action_type} Status: {$order['Status']} at \n" . (new Ndate)->format(Ndate::DATE_TIME);
 
         if ($order['Status'] == 'FLL') {
           $is_filled = true;
@@ -111,15 +114,47 @@ class DefensiveTrader
           $order_processed = true;
         }
 
-        sleep(max(3 - (microtime(true) - $start), 0));
+        if (microtime(true) - $checking_start > 1) {
+          $dynamic_delay++;
+          $checking_start = microtime(true);
+        }
+        sleep(max($dynamic_delay - (microtime(true) - $inquiry_start), 0));
       }
 
-      sleep(1);
-
+      $trials++;
       echo "\n";
-    } while (!$is_filled);
+    } while (!$is_filled && $trials < 4);
+  }
 
-    echo "\n";
+  public function setOCO(string $close_position, float $danger, float $limit_percent): void
+  {
+    echo "Setting OCO at " . (new Ndate)->format(Ndate::DATE_TIME) . "\n";
+    $this->stock['quantity'] = $this->trade_station->getExecQuantity($this->stock['order_id']);
+
+    do {
+      // Setting OCO order
+      [$this->stock['stop_id'], $this->stock['limit_id']] = $this->trade_station->placeOCO($this->stock, [[
+        'percent' => $danger,
+        'order_type' => 'StopMarket',
+        'trade_action' => $close_position
+      ], [
+        'percent' => $limit_percent,
+        'order_type' => 'Limit',
+        'trade_action' => $close_position
+      ]]);
+
+      // Checking stoploss order status
+      while (true) {
+        $stop_order_status = $this->trade_station->getOrderStatus($this->stock['stop_id']);
+        if ($stop_order_status == 'REJ')
+          break;
+        else if ($stop_order_status == 'ACK') {
+          $is_set = true;
+          break;
+        } else
+          Timing::sleep(1);
+      }
+    } while ($is_set === null);
   }
 
   public function getStock()
