@@ -50,7 +50,7 @@ class ArteCurl
     $response = new Response($response, $http_status_code, $this->response_headers);
 
     if ($logging)
-      $this->log("$request_type {$this->url}", $data, $response);
+      $this->log("$request_type {$this->url}", $this->headers, $data, $response);
 
     return $response;
   }
@@ -119,9 +119,9 @@ class ArteCurl
     return $this->error;
   }
 
-  private function log(string $request, array $payload, Response $response): void
+  private function log(string $request, array $headers, array $payload, Response $response): void
   {
-    fwrite($this->log_file, (new Ndate)->format(Ndate::DATE_TIME) . "\n$request \nBody: " . json_encode($payload, JSON_PRETTY_PRINT, JSON_UNESCAPED_SLASHES) . "\nResponse Code: " . $response->getCode() . "\nResponse Body: \n" . $response->getBody() . "\n\n");
+    fwrite($this->log_file, (new Ndate)->format(Ndate::DATE_TIME) . "\n$request \Headers: " . json_encode($headers, JSON_PRETTY_PRINT, JSON_UNESCAPED_SLASHES) . "\n\nBody: " . json_encode($payload, JSON_PRETTY_PRINT, JSON_UNESCAPED_SLASHES) . "\nResponse Code: " . $response->getCode() . "\nResponse Body: \n" . $response->getBody() . "\n\n");
   }
 
   public function __destruct()

@@ -15,7 +15,8 @@ class SetGlobalParams extends Endpoint
             'keys' => [false, Regex::generic(0, 300)],
             'secrets' => [false, Regex::generic(0, 300)],
             'is_full_power' => [false, Regex::INT],
-            'is_live' => [false, Regex::INT]
+            'is_live' => [false, Regex::INT],
+            'no-revert' => [false, Regex::ZERO_ONE]
         ], $_POST);
     }
 
@@ -34,6 +35,10 @@ class SetGlobalParams extends Endpoint
             unset($this->request['keys']);
             unset($this->request['secrets']);
         }
+
+        if(isset($this->request['no-revert']))
+            $this->request['no-revert'] = $this->request['no-revert'] == 1;
+
         $this->request['closed_days'] = explode(',', $this->request['closed_days']);
         $json_data = file_get_contents($this->params_file);
         try {

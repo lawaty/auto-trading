@@ -38,7 +38,7 @@ class DefensiveTrader
     $this->stock['symbol'] = $symbol;
     $this->stock['price'] = $this->trade_station->getStockEstimatedPrice($symbol, $this->order_type, $this->action_type);
 
-    echo "Switched buyer to stock {$this->stock['symbol']}\n";
+    echo "\nSwitched buyer to stock {$this->stock['symbol']}\n";
   }
 
   public function setMaxQuantity(int $quantity)
@@ -89,7 +89,7 @@ class DefensiveTrader
       while (!$order_processed) {
         $inquiry_start = microtime(true);
         $order = $this->trade_station->getOrder($this->order_id);
-        echo "{$this->action_type} Status: {$order['Status']} at \n" . (new Ndate)->format(Ndate::DATE_TIME);
+        echo "{$this->action_type} Status: {$order['Status']} at " . (new Ndate)->format(Ndate::DATE_TIME) . "\n";
 
         if ($order['Status'] == 'FLL') {
           $is_filled = true;
@@ -131,6 +131,8 @@ class DefensiveTrader
     echo "Setting OCO at " . (new Ndate)->format(Ndate::DATE_TIME) . "\n";
     $this->stock['quantity'] = $this->trade_station->getExecQuantity($this->stock['order_id']);
 
+    $is_set = false;
+    $trials = 0;
     do {
       // Setting OCO order
       [$this->stock['stop_id'], $this->stock['limit_id']] = $this->trade_station->placeOCO($this->stock, [[
@@ -142,19 +144,22 @@ class DefensiveTrader
         'order_type' => 'Limit',
         'trade_action' => $close_position
       ]]);
+      $trials++;
 
       // Checking stoploss order status
       while (true) {
-        $stop_order_status = $this->trade_station->getOrderStatus($this->stock['stop_id']);
-        if ($stop_order_status == 'REJ')
+        $stop_order = $this->trade_station->getOrder($this->stock['stop_id']);
+        $stop_order_status = $stop_order['Status'];
+        if ($stop_order_status == 'REJ') {
+          echo "Stoploss rejected because " . $stop_order['RejectReason'] . "\n";
           break;
-        else if ($stop_order_status == 'ACK') {
+        } else if ($stop_order_status == 'ACK') {
           $is_set = true;
           break;
         } else
-          Timing::sleep(1);
+          Timing::sleep(5);
       }
-    } while ($is_set === null);
+    } while ($is_set === null && $trials < 2);
   }
 
   public function getStock()

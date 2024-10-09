@@ -15,13 +15,12 @@ class Sequence
 
     private Ndate $bell;
     private array $stages;
-    private float $danger;
     private string $close_position;
     private int $status = -1;
+    private float $filled_price;
 
     private function parseArgs(array $args): void
     {
-        $this->danger = $args['stop_loss_percent'];
         $this->stages = $args['sequences'];
         unset($args['trade_after']);
         unset($args['stop_loss_percent']);
@@ -29,6 +28,7 @@ class Sequence
         unset($args['sid']);
 
         $this->stock = $args['stock'];
+        $this->filled_price = $this->stock['price'];
     }
 
     public function __construct(array $argv, string $which)
@@ -96,7 +96,10 @@ class Sequence
             echo "Failed to reach any of the limits, Closing positions anyways\n";
             $this->status = self::TIMEOUT;
         } else {
-            echo "FilledPrice: " . $is_filled[2] . "\n";
+            if($is_filled[1]) {
+                $loss_percent = $is_filled[3] / $this->filled_price - 1;
+                echo "FilledPrice: {$is_filled[3]} with loss percentage $loss_percent \n";
+            };
 
             StockLogger::logStock(
                 ucfirst($this->which),
@@ -114,7 +117,7 @@ class Sequence
                 [
                     ...$this->stock,
                     'OrderID' => -1,
-                    'price' => '-'
+                    'price' => $is_filled[3]
                 ]
             );
 
@@ -151,7 +154,7 @@ class Sequence
             echo "StopLoss: $stop_status \n";
 
             if ($limit_status == 'FLL' || $stop_status == 'FLL')
-                return [$limit_status, $stop_status, $limit_order['FilledPrice'] ?? -1];
+                return [$limit_status, $stop_status, $limit_order['FilledPrice'] ?? null, $stop_order['FilledPrice'] ?? null];
 
             if (!in_array($limit_status, ['ACK', 'OPN'])) {
                 echo "Weird Limit Order Status. Here is the order\n";

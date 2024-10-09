@@ -144,8 +144,6 @@ class StockMonitor
             'runId' => json_decode($cache->get('runId', [$sid]), true)['data']['runId']
         ];
 
-        var_dump($dir);
-
         $response = $this->curl("signal/test-result-page", "POST", $filter_data);
         $table_html = json_decode($response->getBody(), true)['html'];
         $stocks = Parser::getDataFromTable($table_html);

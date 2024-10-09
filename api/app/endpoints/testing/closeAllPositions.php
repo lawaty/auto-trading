@@ -9,22 +9,38 @@ class closeAllPositions extends Endpoint
 
   public function handle(): Response
   {
-    // Get all positions
-    $trade_station = new TradeStation("buy");
+    $trade_station = new TradeStation('buy');
 
-    $positions = $trade_station->curl("brokerage/accounts/{$trade_station->account_id}/positions", "GET")['Positions'] ?? [];
+    // Fetch all open orders and cancel them
+    $open_orders = $trade_station->getTodayOrders([
+      'OpenOrClose' => 'Open',
+      'Status' => ['ACK', '']
+    ]);
 
-    foreach ($positions as $position) {
-      $symbol = $position['Symbol'];
-      $quantity = $position['Quantity'];
+    return new Response($open_orders);
+    // foreach ($open_orders as $order)
+    //   $trade_station->cancel($order['OrderID']);
 
-      // Check if it's a short position or a long position
-      $trade_action = $position['LongShort'] === 'Short' ? 'BuyToCover' : 'Sell';
+    // // Fetch all positions for the account
+    // $positions = $trade_station->curl("brokerage/accounts/{$trade_station->account_id}/positions", "GET", [], [], true)['Positions'] ?? [];
 
-      // Close the position by placing a market order
-      $trade_station->placeOrder(['symbol' => $symbol, 'quantity' => $quantity], 'Market', $trade_action);
-    }
-    
-    return new Response($positions);
+    // if (empty($positions)) {
+    //   return new Response(['message' => 'No open positions found']);
+    // }
+
+    // // Close all positions
+    // foreach ($positions as $position) {
+    //   $symbol = $position['Symbol'];
+    //   $quantity = $position['Quantity'];
+
+    //   $trade_action = $position['LongShort'] === 'Short' ? 'BuyToCover' : 'Sell';
+
+    //   $trade_station->placeOrder([
+    //     'symbol' => $symbol,
+    //     'quantity' => $quantity
+    //   ], 'Market', $trade_action);
+    // }
+
+    // return new Response(['message' => 'All positions closed successfully', 'positions' => $positions]);
   }
 }

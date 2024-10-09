@@ -33,10 +33,10 @@ while (true) {
 
       $start = microtime(true);
 
-      if(!isset($run['dir']))
+      if (!isset($run['dir']))
         $run['dir'] = null;
       $stocks = $cache->get('stocks', [$run['sid'], 'short', $run['number_of_trades'], null, null, $run['dir']]);
-      
+
       $cache_path = $cache->export(count($stocks));
 
       // Preparing logs
@@ -50,6 +50,9 @@ while (true) {
           'sid' => $run['sid'],
           'dir' => $run['dir'] ?? null
         ];
+
+        if ($config['globals']['no-revert'])
+          $process_args['no-revert'] = true;
 
         $processes[$i]->passArgs($process_args, true);
         echo "Trading {$stock['symbol']}\n";

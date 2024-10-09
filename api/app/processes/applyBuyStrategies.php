@@ -51,6 +51,9 @@ while (true) {
           'dir' => $run['dir'] ?? null
         ];
 
+        if ($config['globals']['no-revert'])
+          $process_args['no-revert'] = true;
+
         $processes[$i]->passArgs($process_args, true);
         echo "Trading {$stock['symbol']}\n";
         $processes[$i]->run(Process::BACKGROUND);

@@ -33,15 +33,18 @@ echo "$time_taken secs taken to initialize the process.\n";
 
 $start = microtime(true);
 
-while (true) {
+$trails = 0;
+while ($trails < 3) {
+  $trails++;
   try {
     $buyer->run();
     $buyer->setOCO('SELL', $args['stop_loss_percent'], $args['sequences'][0]['percent']);
     $time_taken = microtime(true) - $start;
     echo "$time_taken secs taken to initialize the trading process in tradestation.\n";
+    $passed = true;
     break;
   } catch (InsufficientMoney $e) {
-    echo "Couldn't sellshort any stocks. Leaving...\n";
+    echo "Couldn't buy any stocks. Leaving...\n";
     $time_taken = microtime(true) - $start;
     echo "$time_taken secs taken to order in tradestation.\n";
     exit;
@@ -54,6 +57,13 @@ while (true) {
     $buyer::addtoCurrentlyTrading($stock['symbol']);
     $buyer->changeStock();
   }
+}
+
+if (!$passed) {
+  echo "Consumed all the available trails and couldn't buy any stocks\n";
+  $time_taken = microtime(true) - $start;
+  echo "$time_taken secs taken to order in tradestation.\n";
+  exit;
 }
 
 $args['stock'] = $buyer->getStock();

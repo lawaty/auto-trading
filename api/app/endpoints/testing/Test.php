@@ -1,7 +1,5 @@
 <?php
 
-require_once MODEL_DIR . "/mocks/DemoTradeStation.php";
-
 class Test extends Endpoint
 {
   public function __construct()
@@ -11,8 +9,10 @@ class Test extends Endpoint
 
   public function handle(): Response
   {
-    $stock_monitor = new StockMonitor;
-    $stocks = $stock_monitor->getStocks(86299, 'short', null, null ,null, 'DESC');
-    return new Response(array_column($stocks, 'symbol'));
+    $tradestation = new TradeStation('buy');
+
+    $tradestation->getOrder(856208644);
+
+    return new Response();
   }
 }

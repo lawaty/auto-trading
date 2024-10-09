@@ -31,6 +31,9 @@ $(document).on('general-loaded', () => {
         $("#money-percent").val(xhr.parsed.globals.money / xhr.parsed.balance * 100)
 
         $("[name=account_id]").val(xhr.parsed.globals.account_id)
+
+        let no_revert_val = xhr.parsed.globals['no-revert'] ? 1 : 0
+        $(`[name=no-revert][value=${no_revert_val}]`).prop('checked', true)
       }
     }
   })
@@ -52,8 +55,8 @@ $(document).on('general-loaded', () => {
     form_data.delete('secrets[]');
     form_data.append('secrets', secrets_csv);
 
-    for (let [key, value] of form_data.entries())
-      console.log(key, value)
+    // for (let [key, value] of form_data.entries())
+    //   console.log(key, value)
 
     return form_data
   }
