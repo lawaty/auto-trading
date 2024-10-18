@@ -70,7 +70,8 @@ class TradeStation
         return $this->curl("{$this->api_base}/orderexecution/orders/$order_id", "DELETE", [], [], true);
     }
 
-    public function curl(string $url, string $type, array $data = [], array $headers = [], $logging = false): mixed
+    // public function curl(string $url, string $type, array $data = [], array $headers = [], $logging = false): mixed
+    public function curl(string $url, string $type, array $data = [], array $headers = [], $logging = true): mixed // stub: logging set to true for debugging
     {
         $this->access_token = ArteCache::getInst()->get('tradestation_access_token');
 

@@ -128,47 +128,53 @@ class StockMonitor
         return $this->curl("signal/test/", "POST", $data)->getBody();
     }
 
-    public function getStocks(int $sid, mixed $stock_type, int $limit = null, array $excluded = null, array $included = null, string $dir = null): array
+    public function getStocks(int $sid, mixed $stock_type, int $limit = null, array $excluded = null, array $included = null, string $dir = null, int $skip = 0): array
     {
         $cache = ArteCache::getInst();
         echo "Fetching Stocks... \n";
-        if(!$dir)
+        if (!$dir)
             $dir = $stock_type == static::BUY || $stock_type == "buy" ? 'DESC' : 'ASC';
 
-        $filter_data = [
-            'page' => 1,
-            "orderState" => [
-                "field" => "pchange",
-                'dir' => $dir,
-            ],
-            'runId' => json_decode($cache->get('runId', [$sid]), true)['data']['runId']
-        ];
-
-        $response = $this->curl("signal/test-result-page", "POST", $filter_data);
-        $table_html = json_decode($response->getBody(), true)['html'];
-        $stocks = Parser::getDataFromTable($table_html);
-
-        if(!$excluded)
+        // Loading excluded stocks
+        if (!$excluded)
             $excluded = [];
-
-        array_push($excluded, ...json_decode(file_get_contents(JSONS_DIR .'/currently_trading.json'), true));
-        
+        array_push($excluded, ...json_decode(file_get_contents(JSONS_DIR . '/currently_trading.json'), true));
         $filters = Config::getInst()['globals']['excluded'];
         if (!empty($excluded))
-            array_push($filters, ...$excluded);
+               array_push($filters, ...$excluded);
 
-        $stocks = array_filter($stocks, function ($stock) use ($filters) {
-            return !in_array($stock['symbol'], $filters);
-        });
+        $stocks = [];
+        $page = 0;
 
-        if (!empty($included))
-            $stocks = array_filter($stocks, function ($stock) use ($included) {
-                return in_array($stock['symbol'], $included);
+        while (count($stocks) < $limit + $skip) {
+            // Scrapping Stocks
+            $filter_data = [
+                'page' => ++$page,
+                "orderState" => [
+                    "field" => "pchange",
+                    'dir' => $dir,
+                ],
+                'runId' => json_decode($cache->get('runId', [$sid]), true)['data']['runId']
+            ];
+            $response = $this->curl("signal/test-result-page", "POST", $filter_data);
+            $table_html = json_decode($response->getBody(), true)['html'];
+            $temp_stocks = Parser::getDataFromTable($table_html);
+
+            // Filtering Excluded stocks
+            $temp_stocks = array_filter($temp_stocks, function ($stock) use ($filters) {
+                return !in_array($stock['symbol'], $filters);
             });
+            if (!empty($included))
+                $temp_stocks = array_filter($temp_stocks, function ($stock) use ($included) {
+                    return in_array($stock['symbol'], $included);
+                });
 
-        if ($limit)
-            return array_splice($stocks, 0, $limit);
+            array_push($stocks, ...$temp_stocks);
+            array_push($filters, ...$temp_stocks);
+        }
 
-        return $stocks;
+        if(!$limit) $limit = 100;
+
+        return array_splice($stocks, $skip, $limit);
     }
 }

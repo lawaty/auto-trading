@@ -54,10 +54,6 @@ $(document).on('general-loaded', () => {
     let secrets_csv = form_data.getAll('secrets[]').join(',');
     form_data.delete('secrets[]');
     form_data.append('secrets', secrets_csv);
-
-    // for (let [key, value] of form_data.entries())
-    //   console.log(key, value)
-
     return form_data
   }
 

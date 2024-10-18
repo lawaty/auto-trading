@@ -9,9 +9,7 @@ class Test extends Endpoint
 
   public function handle(): Response
   {
-    $tradestation = new TradeStation('buy');
-
-    $tradestation->getOrder(856208644);
+    UnwantedStock::updateJSON();
 
     return new Response();
   }

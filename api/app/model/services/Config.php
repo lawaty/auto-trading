@@ -58,4 +58,9 @@ class Config implements ArrayAccess
   {
     return $this->config;
   }
+
+  public function save(): bool
+  {
+    return file_put_contents(JSONS_DIR . "/params.json", json_encode($this->config));
+  }
 }

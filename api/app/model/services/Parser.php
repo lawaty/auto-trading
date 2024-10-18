@@ -7,7 +7,7 @@ class Parser
     {
     }
 
-    public static function getDataFromTable($table_html)
+    public static function getDataFromTable($table_html): array
     {
         $dom = new DOMDocument();
         libxml_use_internal_errors(true);

@@ -35,7 +35,7 @@ while (true) {
 
       if (!isset($run['dir']))
         $run['dir'] = null;
-      $stocks = $cache->get('stocks', [$run['sid'], 'buy', $run['number_of_trades'], null, null, $run['dir']]);
+      $stocks = $cache->get('stocks', [$run['sid'], 'buy', $run['number_of_trades'], null, null, $run['dir'], $run['skip'] ?? 0]);
 
       $cache_path = $cache->export(count($stocks));
 
@@ -48,7 +48,8 @@ while (true) {
           'stop_loss_percent' => $run['stop_loss_percent'],
           'sequences' => $run['sequences'],
           'sid' => $run['sid'],
-          'dir' => $run['dir'] ?? null
+          'dir' => $run['dir'] ?? null,
+          'skip' => $run['skip'] ?? 0
         ];
 
         if ($config['globals']['no-revert'])

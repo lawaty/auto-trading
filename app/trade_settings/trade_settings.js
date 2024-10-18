@@ -100,7 +100,8 @@ $(document).on('trade_settings-loaded', () => {
         stop_loss_percent: $(container).find('[name=stop_loss_percent]').val(),
         sequences: [],
         sid: $(container).find('[name=sid]').val(),
-        dir: $(container).find('[type=radio]:checked').val()
+        dir: $(container).find('[type=radio]:checked').val(),
+        skip: $(container).find('[name=skip]').val()
       }
 
       $(container).find('ul li').each(function (i, li) {
@@ -137,7 +138,8 @@ $(document).on('trade_settings-loaded', () => {
         stop_loss_percent: $(container).find('[name=stop_loss_percent]').val(),
         sequences: [],
         sid: $(container).find('[name=sid]').val(),
-        dir: $(container).find('[type=radio]:checked').val()
+        dir: $(container).find('[type=radio]:checked').val(),
+        skip: $(container).find('[name=skip]').val()
       }
 
       $(container).find('ul li').each(function (i, li) {
@@ -212,7 +214,8 @@ function addRun(type, i, run = {
     wait_time: ""
   }],
   sid: -1,
-  dir: 'ASC'
+  dir: 'ASC',
+  skip: 0
 }) {
 
   if (window.filters === undefined) {
@@ -232,11 +235,6 @@ function addRun(type, i, run = {
       </div>
       <div class="form-row">
         <div class="form-group col">
-          <label for="${type}-${i}-number_of_trades">#Trades</label>
-          <input class="form-control" value="${run.number_of_trades}" id="${type}-${i}-number_of_trades" name="number_of_trades" placeholder="e.g. 10">
-        </div>
-
-        <div class="form-group col">
           <label for="${type}-${i}-number_of_trades">Buying Power %</label>
           <input class="form-control" value="${run.buying_power_percent ?? 1}" id="${type}-${i}-buying_power_percent" name="buying_power_percent" placeholder="e.g. 10">
         </div>
@@ -251,6 +249,18 @@ function addRun(type, i, run = {
           <input value="${run.stop_loss_percent}" class="form-control" id="b${type}${i}_stop_loss" name="stop_loss_percent" placeholder="e.g. 10">
         </div>
       </div>
+      <div class="form-row">
+        <div class="form-group col">
+          <label for="${type}-${i}-number_of_trades">#Trades</label>
+          <input class="form-control" value="${run.number_of_trades}" id="${type}-${i}-number_of_trades" name="number_of_trades" placeholder="e.g. 10">
+        </div>
+
+        <div class="form-group col">
+          <label for="${type}-${i}-skip">#stocks to be skipped</label>
+          <input class="form-control" value="${run.skip ?? 0}" id="${type}-${i}-skip" name="skip" placeholder="e.g. 10">
+        </div>
+      </div>
+
 
       <h6>Sequences</h6>
       <ul id="${type}-${i}-sequences">

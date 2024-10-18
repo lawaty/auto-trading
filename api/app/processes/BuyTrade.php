@@ -55,7 +55,7 @@ while ($trails < 3) {
     exit;
   } catch (Rejected $e) {
     $buyer::addtoCurrentlyTrading($stock['symbol']);
-    $buyer->changeStock();
+    $buyer->changeStock($args['skip'] ?? 0);
   }
 }
 

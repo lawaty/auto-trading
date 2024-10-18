@@ -30,10 +30,10 @@ class DefensiveTrader
     $this->sid = $sid;
   }
 
-  public function changeStock()
+  public function changeStock(int $skip = 0)
   {
     $stock_monitor = new StockMonitor;
-    $symbol = $stock_monitor->getStocks($this->sid, $this->action_type == 'BUY' ? 'buy' : 'short', 1, [$this->stock['symbol']])[0]['symbol'];
+    $symbol = $stock_monitor->getStocks($this->sid, $this->action_type == 'BUY' ? 'buy' : 'short', 1, [$this->stock['symbol']], null, null, $skip)[0]['symbol'];
     $this->stock = $this->trade_station->getStock($symbol);
     $this->stock['symbol'] = $symbol;
     $this->stock['price'] = $this->trade_station->getStockEstimatedPrice($symbol, $this->order_type, $this->action_type);
@@ -83,9 +83,8 @@ class DefensiveTrader
 
       $this->stock['order_id'] = $this->order_id;
 
-      $checking_start = microtime(true);
       $order_processed = false;
-      $dynamic_delay = 0;
+      $dynamic_delay = 0.3;
       while (!$order_processed) {
         $inquiry_start = microtime(true);
         $order = $this->trade_station->getOrder($this->order_id);
@@ -114,10 +113,7 @@ class DefensiveTrader
           $order_processed = true;
         }
 
-        if (microtime(true) - $checking_start > 1) {
-          $dynamic_delay++;
-          $checking_start = microtime(true);
-        }
+        $dynamic_delay = min($dynamic_delay + 1, 8);
         sleep(max($dynamic_delay - (microtime(true) - $inquiry_start), 0));
       }
 

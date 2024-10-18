@@ -16,7 +16,7 @@ function restartTomorrow()
 {
   $process_date = $GLOBALS['process_date'];
   echo "Today is a holiday. The market is closed.\n";
-  $restart_at = $process_date;
+  $restart_at = clone $process_date;
   $restart_at->addDays(1);
 
   // Wait until 1 am tomorrow to restart
@@ -74,7 +74,7 @@ while (true) {
       $event_at = $close_time;
     else {
       $event_at = $open_time;
-      $event_at->addDays(1);
+      $event_at->addDays(1  );
       $close_time->addDays(1);
     }
 
@@ -91,7 +91,7 @@ while (true) {
     echo "Status: $status\nOpen At: {$open_time->format(Ndate::DATE_TIME)}\nNext Event: {$event_at->format(Ndate::DATE_TIME)}\n";
     file_put_contents(JSONS_DIR . '/params.json', json_encode($all_params));
 
-    $restart_at = $process_date;
+    $restart_at = clone $process_date;
     $restart_at->addDays(1);
     $till_event = $now->minutesUntil($event_at);
     $max_wait = 60 * 3;

@@ -7,11 +7,14 @@ class Delete extends Authenticated
             'stock_id' => [true,Regex::ID]
         ],$_POST);
     }
+
     public function handle() : Response
     {
         $ex_stock = new UnwantedStock($this->request['stock_id']);
-        if($ex_stock->delete())
-            return new Response("Deleted");
+        if($ex_stock->delete()){
+            UnwantedStock::updateJSON();
+            return new Response("Deleted");            
+        }
         else 
             return new Response("An error has occured");
     }
