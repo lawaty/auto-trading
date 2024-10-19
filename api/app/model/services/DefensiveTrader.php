@@ -97,8 +97,6 @@ class DefensiveTrader
 
           echo "{$this->action_type} Filled With Price: {$this->stock['price']} to spend a total of {$this->filled_price}\n";
 
-          self::addtoCurrentlyTrading($this->stock['symbol']);
-
           $order_processed = true;
         } else if ($order['Status'] == 'REJ') {
           echo "{$this->action_type} Rejected because: {$order['RejectReason']}\n";
@@ -171,39 +169,6 @@ class DefensiveTrader
   public function getFilledPrice(): float
   {
     return $this->filled_price;
-  }
-
-  public static function addtoCurrentlyTrading(string $symbol): void
-  {
-    // Mutex Lock
-    while (file_exists(TMP_DIR . '/currently_trading.lock'))
-      sleep(1);
-    touch(TMP_DIR . '/currently_trading.lock');
-
-    $currently_trading = json_decode(file_get_contents(JSONS_DIR . '/currently_trading.json'), true);
-    $currently_trading[] = $symbol;
-    file_put_contents(JSONS_DIR . '/currently_trading.json', json_encode($currently_trading));
-
-    unlink(TMP_DIR . '/currently_trading.lock');
-  }
-
-  public static function removeFromCurrentlyTrading(string $symbol): void
-  {
-    // Mutex Lock
-    while (file_exists(TMP_DIR . '/currently_trading.lock'))
-      sleep(1);
-    touch(TMP_DIR . '/currently_trading.lock');
-
-    $currently_trading = json_decode(file_get_contents(JSONS_DIR . '/currently_trading.json'), true);
-    @$currently_trading = array_values(array_diff($currently_trading, [$symbol]));
-    file_put_contents(JSONS_DIR . '/currently_trading.json', json_encode($currently_trading));
-
-    unlink(TMP_DIR . '/currently_trading.lock');
-  }
-
-  public static function emptyCurrentlyTrading(): void
-  {
-    file_put_contents(JSONS_DIR . '/currently_trading.json', '[]');
   }
 }
 

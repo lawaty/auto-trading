@@ -14,10 +14,16 @@ class TradeStation
     public string $account_id = "";
     private array $params;
     private string $which;
+    private string $close_position;
 
     public function __construct($which)
     {
         $this->which = $which;
+        if ($which == 'buy')
+            $this->close_position = "SELL";
+        else
+            $this->close_position = "BUYTOCOVER";
+
         $this->loadSettings();
         $this->installCache();
     }
@@ -70,8 +76,8 @@ class TradeStation
         return $this->curl("{$this->api_base}/orderexecution/orders/$order_id", "DELETE", [], [], true);
     }
 
-    // public function curl(string $url, string $type, array $data = [], array $headers = [], $logging = false): mixed
-    public function curl(string $url, string $type, array $data = [], array $headers = [], $logging = true): mixed // stub: logging set to true for debugging
+    public function curl(string $url, string $type, array $data = [], array $headers = [], $logging = false): mixed
+    // public function curl(string $url, string $type, array $data = [], array $headers = [], $logging = true): mixed // stub: logging set to true for debugging
     {
         $this->access_token = ArteCache::getInst()->get('tradestation_access_token');
 
@@ -146,6 +152,22 @@ class TradeStation
         }
 
         return $response['Balances'][0]['CashBalance'] ?? null;
+    }
+
+    public function getEquity(): ?float
+    {
+        $account_id = $this->account_id;
+        $balance_url = $this->api_base . "/brokerage/accounts/$account_id/balances";
+        $response = $this->curl($balance_url, "GET");
+
+        $error = $response['Errors'] ?? $response['Error'] ?? null;
+        if ($error && str_contains($response['Message'], "Invalid Account ID"))
+            throw new InvalidAccountID();
+        else if ($error) {
+            return null;
+        }
+
+        return $response['Balances'][0]['Equity'] ?? null;
     }
 
     public function getBuyingPower()
@@ -437,6 +459,15 @@ class TradeStation
         $exec_quantity = $response["Orders"][0]['Legs'][0]['ExecQuantity'] ?? 0;
 
         return $exec_quantity;
+    }
+
+    public function closePosition(array $ids): void
+    {
+        if (isset($ids['limit_id']) && isset($ids['stop_id']) && isset($ids['order_id'])) {
+            $this->cancel($ids['limit_id']);
+            $this->cancel($ids['stop_id']);
+            $this->placeOrder($ids, 'Market', $this->close_position);
+        }
     }
 }
 

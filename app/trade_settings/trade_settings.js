@@ -366,9 +366,15 @@ function runTrader(btn, type) {
 }
 
 function stopTrader(btn, type) {
+  if(!confirm(`Are you sure your want to stop the ${type} processes`))
+    return ; 
+
   AJAX.ajax({
     url: config.API + '/stop/' + type.charAt(0).toUpperCase() + type.slice(1),
     type: "POST",
+    data: {
+      graceful: confirm(`Do you want to close all ${type} positons as well ? Note that unclosed positions become untrackable by the system.`) ? 1 : 0
+    },
     beforeSend: (xhr) => {
       xhr.setRequestHeader('Authorization', 'Bearer ' + token)
     },

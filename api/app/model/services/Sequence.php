@@ -75,7 +75,7 @@ class Sequence
                 break;
         }
 
-        DefensiveTrader::removeFromCurrentlyTrading($this->stock['symbol']);
+        (new TradeMonitor)->remove($this->stock['symbol']);
 
         if (!$is_filled) {
             $this->stock['quantity'] = $this->trade_station->getExecQuantity($this->stock['order_id']);
@@ -90,13 +90,16 @@ class Sequence
                 ]
             );
 
-            $this->trade_station->cancel($this->stock['limit_id']);
-            $this->trade_station->cancel($this->stock['stop_id']);
-            $this->trade_station->placeOrder($this->stock, 'Market', $this->close_position);
-            echo "Failed to reach any of the limits, Closing positions anyways\n";
+            $this->trade_station->closePosition([
+                'order_id' => $this->stock['order_id'],
+                'limit_id' => $this->stock['limit_id'],
+                'stop_id' => $this->stock['stop_id']
+            ]);
+            
+            echo "Failed; to reach any of the limits, Closing positions anyways\n";
             $this->status = self::TIMEOUT;
         } else {
-            if($is_filled[1]) {
+            if ($is_filled[1]) {
                 $loss_percent = $is_filled[3] / $this->filled_price - 1;
                 echo "FilledPrice: {$is_filled[3]} with loss percentage $loss_percent \n";
             };

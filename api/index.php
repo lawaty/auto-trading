@@ -29,7 +29,10 @@ else {
       $code = is_integer($e->getCode()) ? $e->getCode() : 500;
     if (DEBUG)
       $response = new Response(trace($e), $code);
-    else $response = new Response('Something Went Wrong!', $code);
+    else {
+      echo trace($e); // Echoing the error to the hidden buffer before client echo
+      $response = new Response('Something Went Wrong!', $code);
+    }
   }
 }
 

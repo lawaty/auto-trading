@@ -33,12 +33,15 @@ echo "$time_taken secs taken to initialize the process.\n";
 
 $start = microtime(true);
 
+$monitor = new TradeMonitor;
 $trails = 0;
 while ($trails < 3) {
   $trails++;
   try {
     $buyer->run();
     $buyer->setOCO('BUYTOCOVER', $args['stop_loss_percent'], $args['sequences'][0]['percent']);
+    $stock = $buyer->getStock();
+    $monitor->add($stock);
     $time_taken = microtime(true) - $start;
     echo "$time_taken secs taken to order in tradestation.\n";
     $passed = true;
@@ -54,7 +57,7 @@ while ($trails < 3) {
     echo "$time_taken secs taken to order in tradestation.\n";
     exit;
   } catch (Rejected $e) {
-    $buyer::addtoCurrentlyTrading($stock['symbol']);
+    $monitor->add([$stock['symbol']]);
     $buyer->changeStock($args['skip']);
   }
 }

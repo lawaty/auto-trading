@@ -9,8 +9,6 @@ class Test extends Endpoint
 
   public function handle(): Response
   {
-    UnwantedStock::updateJSON();
-
-    return new Response();
+    return new Response((new TradeStation('buy'))->getEquity());
   }
 }

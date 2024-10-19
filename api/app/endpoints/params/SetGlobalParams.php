@@ -16,6 +16,7 @@ class SetGlobalParams extends Endpoint
             'secrets' => [false, Regex::generic(0, 300)],
             'is_full_power' => [false, Regex::INT],
             'is_live' => [false, Regex::INT],
+            'leave_percent' => [false, Regex::ANY],
             'no-revert' => [false, Regex::ZERO_ONE]
         ], $_POST);
     }

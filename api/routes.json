@@ -2,12 +2,12 @@
   "testing/GetTable": "testing/GetTable.php",
   "testing/TestProcess": "testing/TestProcess.php",
   "testing/Shutdown": "testing/Shutdown.php",
-  "testing/Yrab": "testing/Yrab.php",
   "testing/login": "testing/login.php",
   "stockMonitor/getFilters": "GetFilters.php",
   "test": "testing/Test.php",
   "testing/closePositions": "testing/closeAllPositions.php",
   "cache-test": "testing/CacheTest.php",
+  "testing/processes": "testing/Processes.php",
 
   "params/SetGlobalParams" : "params/SetGlobalParams.php",
   "params/SetBuyParams" : "params/SetBuyParams.php",

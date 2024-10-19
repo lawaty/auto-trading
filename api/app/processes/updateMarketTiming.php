@@ -74,7 +74,7 @@ while (true) {
       $event_at = $close_time;
     else {
       $event_at = $open_time;
-      $event_at->addDays(1  );
+      $event_at->addDays(1);
       $close_time->addDays(1);
     }
 

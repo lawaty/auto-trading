@@ -5,7 +5,8 @@ class Stop extends Authenticated
   public function __construct()
   {
     $this->init([
-      'process' => [true, Regex::ANY],
+      'process' => [true, "/^(Buy|Short)$/"],
+      'graceful' => [true, Regex::ZERO_ONE]
     ], $_POST);
   }
 
@@ -17,21 +18,28 @@ class Stop extends Authenticated
       sleep(10);
     }
 
+    $monitor = new TradeMonitor;
+    $tradestation = new TradeStation(strtolower($this->request['process']));
 
-    try {
-      $processes = [
-        ...Process::getAllByName("apply" . $this->request['process'] . "Strategies"),
-        ...Process::getAllByName($this->request['process'] . "Trade")
-      ];
+    $processes = [
+      ...Process::getAllByName("apply" . $this->request['process'] . "Strategies"),
+      ...Process::getAllByName($this->request['process'] . "Trade")
+    ];
 
-      foreach ($processes as $process)
-        $process->shutdown();
-      
-      DefensiveTrader::emptyCurrentlyTrading();
-
-      return new Response;
-    } catch (Exception | Error $e) {
-      return new Response('', 500);
+    /**
+     * @var Process
+     */
+    foreach ($processes as $process) {
+      $process->shutdown();
+      if ($this->request['graceful']) {
+        $trades = $monitor->getAllByPID($process->getPID());
+        foreach ($trades as $symbol => $trade) {
+          $tradestation->closePosition($trade);
+          $monitor->remove($symbol);
+        }
+      }
     }
+
+    return new Response;
   }
 }

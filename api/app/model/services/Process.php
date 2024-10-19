@@ -73,6 +73,7 @@ class Process
             $process_name = explode('.php', $process_name)[0];
             $process = new self($process_name);
             $process->pid = $pid;
+            $process->args = json_decode(explode(' ', $cmd)[2] ?? "", true) ?? [];
             return $process;
         }
         return null;
@@ -87,15 +88,18 @@ class Process
         exec("ps aux | grep '$name' | grep -v grep", $output);
 
         $pids = [];
+        $args = [];
         foreach ($output as $line) {
             $columns = preg_split('/\s+/', $line);
             $pids[] = $columns[1];
+            $args[] = $columns[12] ?? "";
         }
 
         $processes = [];
-        foreach ($pids as $pid) {
+        foreach ($pids as $i => $pid) {
             $temp = new self($name);
             $temp->pid = $pid;
+            $temp->args = json_decode($args[$i], true) ?? [];
             $processes[] = $temp;
         }
 
@@ -115,11 +119,14 @@ class Process
         $this->log_path = $path;
     }
 
-    public function passArgs(array $args, bool $is_json = false): void
+    public function passArgs(array $args): void
     {
-        if ($is_json)
-            $this->args = [json_encode($args)];
-        else $this->args = $args;
+        $this->args = [json_encode($args)];
+    }
+
+    public function getArgs(): array
+    {
+        return $this->args;
     }
 
     public function run(int $run_type = Process::FOREGROUND)
