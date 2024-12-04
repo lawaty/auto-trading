@@ -138,7 +138,7 @@ class StockMonitor
         // Loading excluded stocks
         if (!$excluded)
             $excluded = [];
-        array_push($excluded, ...json_decode(file_get_contents(JSONS_DIR . '/currently_trading.json'), true));
+        array_push($excluded, ...(new TradeMonitor)->getAllSymbols());
         $filters = Config::getInst()['globals']['excluded'];
         if (!empty($excluded))
                array_push($filters, ...$excluded);

@@ -2,40 +2,32 @@
 
 require_once __DIR__ . "../../../autoload.php";
 
-$process_date = new Ndate('01:00:00');
-
-function restart()
+interface MarketTimingScrapper
 {
-  $new_process = new Process("updateMarketTiming", LOG_DIR . '/market-timing-' . (new Ndate)->format(Ndate::DATE) . '.log');
-  if ($new_process->run(Process::BACKGROUND)) {
-    exit;
+  public function isHoliday(): bool;
+  public function getOpenTime(): Ndate;
+  public function getCloseTime(): Ndate;
+  public function getStatus(): string;
+}
+
+class ForexScrapper implements MarketTimingScrapper
+{
+  private string $status;
+  private Ndate $open_time;
+  private Ndate $close_time;
+  private bool $is_holiday;
+
+  public function __construct()
+  {
+    $this->scrape();
   }
-}
 
-function restartTomorrow()
-{
-  $process_date = $GLOBALS['process_date'];
-  echo "Today is a holiday. The market is closed.\n";
-  $restart_at = clone $process_date;
-  $restart_at->addDays(1);
+  private function scrape(): void
+  {
+    $html = file_get_contents("https://www.forexchurch.com/stock-market-holidays/new-york-stock-exchange");
 
-  // Wait until 1 am tomorrow to restart
-  $wait_time = (new Ndate())->minutesUntil($restart_at);
-  echo "Waiting until 1 am tomorrow to restart (in $wait_time minutes).\n";
-  sleep($wait_time * 60 + 1); // Convert to seconds and wait
-
-  restart(); // Restart the process after waiting
-}
-
-while (true) {
-  try {
-    echo "Fetching...\n";
-    $html = file_get_contents("https://api.crawlbase.com/?token=LDHkofAU5ilNXO0TaXr-DQ&url=https://www.forexchurch.com/stock-market-holidays/new-york-stock-exchange");
-
-    if ($html === FALSE) {
-      echo "Failed to fetch the HTML content.\n";
-      continue;
-    }
+    if ($html === FALSE)
+      throw new ScrapeFailed('Received nothing from the destination');
 
     $dom = new DOMDocument();
     @$dom->loadHTML($html);
@@ -47,25 +39,88 @@ while (true) {
     preg_match('/isholiday\s*=\s*(true|false)/i', $html, $matches1);
     preg_match('/weekend\s*=\s*(true|false)/i', $html, $matches2);
     if ($matches1[1] === 'true' || $matches2[1] === 'true') {
-      $isholiday = true;
+      $this->is_holiday = true;
     } else {
       $holidays = extractHolidays($dom);
-      $isholiday = in_array((new Ndate())->format(), $holidays);
+      $this->is_holiday = in_array((new Ndate())->format(), $holidays);
     }
 
     // Updating Configurations
     if ($nodes->length > 0) {
       $firstRow = $nodes->item(0);
       $data = $firstRow->childNodes;
-    } else {
-      echo "Failed to find the table or its first row.\n";
-      sleep(60 * 2);
+    } else
+      throw new ScrapeFailed("Failed to find the table or its first row.\n");
+
+    $this->open_time = new Ndate(trim($data->item(3)->textContent));
+    $this->close_time = new Ndate(trim($data->item(5)->textContent));
+    $config = Config::getInst();
+
+    $this->status = trim($data->item(1)->textContent);
+    if ((new Ndate($config['globals']['until']))->format(Ndate::DATE_TIME) == $this->open_time->format(Ndate::DATE_TIME) && (new Ndate)->after($this->open_time))
+      $this->status = 'Open';
+  }
+
+  public function isHoliday(): bool
+  {
+    return $this->is_holiday;
+  }
+
+  public function getOpenTime(): Ndate
+  {
+    return $this->open_time;
+  }
+
+  public function getCloseTime(): Ndate
+  {
+    return $this->close_time;
+  }
+
+  public function getStatus(): string
+  {
+    return $this->status;
+  }
+}
+
+class ScrapeFailed extends Exception {}
+
+$process_date = new Ndate('01:00:00');
+
+// Use the Timing class for waiting logic
+function restart()
+{
+  $new_process = new Process("updateMarketTiming", LOG_DIR . '/market-timing-' . (new Ndate)->format(Ndate::DATE) . '.log');
+  if ($new_process->run(Process::BACKGROUND)) {
+    exit;
+  }
+}
+
+function restartTomorrow()
+{
+  echo "Today is a holiday. The market is closed.\n";
+
+  // Use the Timing class to wait until 1 am tomorrow
+  $timing = new Timing('Market');
+  $timing->waitTill((new Ndate('01:00:00'))->addDays(1));
+
+  restart(); // Restart the process after waiting
+}
+
+while (true) {
+  try {
+    echo "Fetching...\n";
+
+    try {
+      $scrapper = new ForexScrapper();
+    } catch (ScrapeFailed $e) {
+      echo "Scrape Failed: " . $e->getMessage() . "\n";
+      sleep(2 * 60);
       continue;
     }
 
-    $status = trim($data->item(1)->textContent);
-    $open_time = new Ndate(trim($data->item(3)->textContent));
-    $close_time = new Ndate(trim($data->item(5)->textContent));
+    $status = $scrapper->getStatus();
+    $open_time = $scrapper->getOpenTime();
+    $close_time = $scrapper->getCloseTime();
     $now = new Ndate;
 
     if ($now->before($open_time))
@@ -78,12 +133,8 @@ while (true) {
       $close_time->addDays(1);
     }
 
-    $all_params = json_decode(file_get_contents(JSONS_DIR . '/params.json'), true);
-
-    if ((new Ndate($all_params['globals']['until']))->format(Ndate::DATE_TIME) == $open_time->format(Ndate::DATE_TIME) && (new Ndate)->after($open_time))
-      $status = 'Open';
-
-    $all_params['globals']['is_holiday'] = $isholiday;
+    $all_params = Config::getInst()->toArray();
+    $all_params['globals']['is_holiday'] = $scrapper->isHoliday();
     $all_params['globals']['status'] = $status;
     $all_params['globals']['open_time'] = $open_time->format(Ndate::DATE_TIME);
     $all_params['globals']['close_time'] = $close_time->format(Ndate::DATE_TIME);
@@ -91,29 +142,20 @@ while (true) {
     echo "Status: $status\nOpen At: {$open_time->format(Ndate::DATE_TIME)}\nNext Event: {$event_at->format(Ndate::DATE_TIME)}\n";
     file_put_contents(JSONS_DIR . '/params.json', json_encode($all_params));
 
-    $restart_at = clone $process_date;
-    $restart_at->addDays(1);
-    $till_event = $now->minutesUntil($event_at);
-    $max_wait = 60 * 3;
+    // Use Timing class to wait until the next event
+    $timing = new Timing('Market');
+    $timing->waitTill($event_at);
 
-    echo "Status: $status\tNext bell rings in $till_event mins \n";
-    echo "Market Timing is Updated — at " . $now->format(Ndate::DATE_TIME) . "\n";
-
-
-    if ($isholiday) {
+    // Check for holiday and restart logic
+    if ($scrapper->isHoliday()) {
       restartTomorrow();
-
-      // Negative Section
       echo "Negative Section Reached !!\n";
       continue;
     }
 
     echo "Today is not a holiday. Checking Open Time ...\n";
 
-    $wait_time = min($max_wait, ($till_event));
-
-    echo "Waiting $wait_time mins till next update.\n\n";
-    sleep($wait_time * 60 + 1); // Convert to seconds for sleep
+    echo "Market Timing is Updated — at " . $now->format(Ndate::DATE_TIME) . "\n";
 
     if ((new Ndate())->after($restart_at)) {
       restart();

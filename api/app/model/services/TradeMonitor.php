@@ -68,6 +68,12 @@ class TradeMonitor
     $this->release();
   }
 
+  public function update(array $trade): void
+  {
+    $this->remove($trade['symbol']);
+    $this->add($trade);
+  }
+
   public function empty(): void
   {
     $this->acquire();
@@ -101,5 +107,15 @@ class TradeMonitor
     $this->release();
 
     return $trades;
+  }
+
+  public function getAll(): array
+  {
+    return array_merge(...array_values($this->load()));
+  }
+
+  public function getAllSymbols(): array
+  {
+    return array_keys(array_merge(...array_values($this->load())));
   }
 }

@@ -29,12 +29,12 @@ $(document).on('trade_settings-loaded', () => {
     complete: {
       200: (xhr) => {
         for (let sequence of xhr.parsed.buy.sequences)
-          addSequence('buy-loss-sequences', sequence.percent, sequence.wait_time)
+          addSequence('buy-loss-sequences', sequence.trigger, sequence.trail)
 
         $("#buy-loss-run [name=stop_loss_percent]").val(xhr.parsed.buy.stop_loss_percent)
 
         for (let sequence of xhr.parsed.short.sequences)
-          addSequence('short-loss-sequences', sequence.percent, sequence.wait_time)
+          addSequence('short-loss-sequences', sequence.trigger, sequence.trail)
 
         $("#short-loss-run [name=stop_loss_percent]").val(xhr.parsed.short.stop_loss_percent)
       }
@@ -106,8 +106,8 @@ $(document).on('trade_settings-loaded', () => {
 
       $(container).find('ul li').each(function (i, li) {
         run.sequences.push({
-          wait_time: $(li).find("[name='wait_time[]']").val(),
-          percent: $(li).find("[name='percent[]']").val(),
+          trigger: $(li).find("[name='trigger[]']").val(),
+          trail: $(li).find("[name='trail[]']").val(),
         })
       })
 
@@ -144,8 +144,8 @@ $(document).on('trade_settings-loaded', () => {
 
       $(container).find('ul li').each(function (i, li) {
         run.sequences.push({
-          wait_time: $(li).find("[name='wait_time[]']").val(),
-          percent: $(li).find("[name='percent[]']").val(),
+          trigger: $(li).find("[name='trigger[]']").val(),
+          trail: $(li).find("[name='trail[]']").val(),
         })
       })
 
@@ -171,15 +171,15 @@ $(document).on('trade_settings-loaded', () => {
 
     $("#buy-loss-sequences li").each(function (i, li) {
       buy_sequences.push({
-        wait_time: $(li).find("[name='wait_time[]']").val(),
-        percent: $(li).find("[name='percent[]']").val(),
+        trigger: $(li).find("[name='trigger[]']").val(),
+        trail: $(li).find("[name='trail[]']").val(),
       })
     })
 
     $("#short-loss-sequences li").each(function (i, li) {
       short_sequences.push({
-        wait_time: $(li).find("[name='wait_time[]']").val(),
-        percent: $(li).find("[name='percent[]']").val(),
+        trigger: $(li).find("[name='trigger[]']").val(),
+        trail: $(li).find("[name='trail[]']").val(),
       })
     })
 
@@ -210,8 +210,8 @@ function addRun(type, i, run = {
   buying_power_percent: 1,
   stop_loss_percent: "",
   sequences: [{
-    percent: "",
-    wait_time: ""
+    trigger: "",
+    trail: ""
   }],
   sid: -1,
   dir: 'ASC',
@@ -228,10 +228,13 @@ function addRun(type, i, run = {
     filters_options += `<option value="${filter.sid}" ${filter.sid == run.sid ? 'selected' : ''}>${filter.name}</option>`
 
   $("#" + type + "-runs").append(`
-    <div class="run-container">
+    <div class="run-container ${type}">
       <div class="form-row justify-content-between align-items-center">
         <h4>Run ${parseInt(i) + 1}</h4>
+        <div>
+        <i class="bi bi-clipboard" onclick="duplicate(this)"></i>
         <i class="bi bi-trash text-danger" onclick="deleteRun(this)"></i>
+        </div>
       </div>
       <div class="form-row">
         <div class="form-group col">
@@ -295,10 +298,43 @@ function addRun(type, i, run = {
   })
 
   for (let sequence of run.sequences)
-    addSequence(type + '-' + i + '-sequences', sequence.percent, sequence.wait_time)
+    addSequence(type + '-' + i + '-sequences', sequence.trigger, sequence.trail)
 
   if (!run.sequences.length)
     addSequence(type + '-' + i + '-sequences', 0, 0)
+}
+
+function duplicate(icon) {
+  let container = $(icon).closest('.run-container')
+
+  let sequences = [];
+  container.find('ul li').each(function (i, li) {
+    sequences.push({
+      trigger: $(li).find("[name='trigger[]']").val(),
+      trail: $(li).find("[name='trail[]']").val()
+    })
+  })
+
+  addRun(container.hasClass('buy') ? 'buy' : "short", container.closest('ul').find('.run-container').length, {
+    number_of_trades: container.find("[name=number_of_trades]").val(),
+    trade_after: container.find("[name=trade_after]").val(),
+    buying_power_percent: container.find("[name=buying_power_percent]").val(),
+    stop_loss_percent: container.find("[name=stop_loss_percent]").val(),
+    sequences: sequences,
+    sid: container.find("[name=side]").val(),
+    dir: container.find("[type=radio]:checked").val(),
+    skip: container.find("[name=skip]").val()
+  })
+
+  Swal.fire({
+    icon: 'success',
+    text: 'Scroll down to see the added run',
+    toast: true,
+    position: 'bottom-end',
+    showConfirmButton: false,
+    timer: 2000,
+    timerProgressBar: true
+  })
 }
 
 function deleteRun(i) {
@@ -314,7 +350,7 @@ function deleteRun(i) {
   $(i).closest('.run-container').remove()
 }
 
-function addSequence(type, percent = '', wait_time = '') {
+function addSequence(type, trigger = '', trail = '') {
   $("#" + type).append(`
     <li>
       <div class="form-row">
@@ -324,14 +360,14 @@ function addSequence(type, percent = '', wait_time = '') {
           <i onclick="removeStage(this)" class="bi bi-trash text-danger"></i>
         </div>
         <div class="col form-group">
-          <label for="key">Wait Time</label>
-          <input type="text" value="${wait_time}" name="wait_time[]" class="form-control" placeholder="Wait Time">
+          <label for="key">Trail Trigger Percent</label>
+          <input type="text" value="${trigger}" name="trigger[]" class="form-control" placeholder="e.g. 0.01">
         </div>
         <div class="col form-group">
-          <label for="key">Percent</label>
-          <input type="text" value="${percent}" name="percent[]" class="form-control" placeholder="Threshold Percent">
+          <label for="key">Trail Percent</label>
+          <input type="text" value="${trail}" name="trail[]" class="form-control" placeholder="e.g. 0.009">
         </div>
-      </div>
+      </div>  
     </li>`)
 }
 
@@ -366,14 +402,15 @@ function runTrader(btn, type) {
 }
 
 function stopTrader(btn, type) {
-  if(!confirm(`Are you sure your want to stop the ${type} processes`))
-    return ; 
+  if (!confirm(`Are you sure your want to stop the ${type} processes`))
+    return;
 
   AJAX.ajax({
     url: config.API + '/stop/' + type.charAt(0).toUpperCase() + type.slice(1),
     type: "POST",
     data: {
-      graceful: confirm(`Do you want to close all ${type} positons as well ? Note that unclosed positions become untrackable by the system.`) ? 1 : 0
+      graceful: confirm(`Do you want to close all ${type} positons as well ? Note that unclosed positions become untrackable by the system.`) ? 1 : 0,
+      debug: true
     },
     beforeSend: (xhr) => {
       xhr.setRequestHeader('Authorization', 'Bearer ' + token)

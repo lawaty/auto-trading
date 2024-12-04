@@ -2,7 +2,6 @@
 
 require_once __DIR__ . "../../../autoload.php";
 
-const MIN_WAIT = 5; // secs
 const INIT_TIME = 0; // secs
 $initiator = null;
 $timing = new Timing('short');
@@ -30,7 +29,8 @@ while (true) {
       }
 
       $timing->waitTill($right_before_run); // POLA prefers putting the wait logic at the end of each loop for better readability
-      if ($leave_percent < 0 && ($trade_station->getEquity() - $starting_equity) / $starting_equity < -abs($leave_percent)) {
+      $current_equity = $trade_station->getEquity();
+      if ($leave_percent < 0 && ($current_equity - $starting_equity) / $starting_equity < -abs($leave_percent)) {
         echo "\n\nEquity is now below the leaving threshold. Quitting bye bye!";
         break;
       }
@@ -38,7 +38,6 @@ while (true) {
       $timing->waitTillRun($run);
 
       $start = microtime(true);
-
       if (!isset($run['dir']))
         $run['dir'] = null;
       $stocks = $cache->get('stocks', [$run['sid'], 'short', $run['number_of_trades'], null, null, $run['dir'], $run['skip'] ?? 0]);

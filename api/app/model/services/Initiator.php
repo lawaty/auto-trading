@@ -4,7 +4,7 @@ class Initiator
 {
   private string $which;
 
-  private TradeStation $trade_station;
+  private ITradeStation $trade_station;
   private Config $config;
   private ArteCache $cache;
 
@@ -23,9 +23,6 @@ class Initiator
   public function refresh()
   {
     $this->config->refresh();
-
-    $bell = new Ndate($this->config['globals']['until']);
-    $till_bell = (new Ndate)->minutesUntil($bell) + 1;
   }
 
   public function prepare(array $run): array
@@ -48,12 +45,7 @@ class Initiator
       mkdir($log_dir);
 
     for ($i = 0; $i < $run['number_of_trades']; $i++) {
-      $j = 1;
-      while (file_exists($log_dir . '/' . "{$this->which}-$j.log"))
-        $j++;
-
-      $log_file = $log_dir . '/' . "{$this->which}-$j.log";
-      file_put_contents($log_file, "");
+      $log_file = $log_dir . '/' . $this->which;
       $process = new Process(ucfirst($this->which) . "Trade", $log_file);
       $processes[] = $process;
     }
@@ -64,9 +56,5 @@ class Initiator
     echo "Finished Preparing at " . (new Ndate)->format(Ndate::DATE_TIME) . " ...\n";
 
     return $processes;
-  }
-
-  public function getProfit(): float {
-    return $this->trade_station->getProfit();
   }
 }

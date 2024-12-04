@@ -6,13 +6,10 @@ $vendorDir = dirname(__DIR__);
 $baseDir = dirname($vendorDir);
 
 return array(
-    'Symfony\\Polyfill\\Php72\\' => array($vendorDir . '/symfony/polyfill-php72'),
-    'Symfony\\Polyfill\\Intl\\Normalizer\\' => array($vendorDir . '/symfony/polyfill-intl-normalizer'),
-    'Symfony\\Polyfill\\Intl\\Idn\\' => array($vendorDir . '/symfony/polyfill-intl-idn'),
-    'Psr\\Http\\Message\\' => array($vendorDir . '/psr/http-message/src'),
-    'GuzzleHttp\\Psr7\\' => array($vendorDir . '/guzzlehttp/psr7/src'),
-    'GuzzleHttp\\Promise\\' => array($vendorDir . '/guzzlehttp/promises/src'),
-    'GuzzleHttp\\' => array($vendorDir . '/guzzlehttp/guzzle/src'),
+    'WebSocket\\' => array($vendorDir . '/textalk/websocket/lib'),
+    'Psr\\Log\\' => array($vendorDir . '/psr/log/src'),
+    'Psr\\Http\\Message\\' => array($vendorDir . '/psr/http-factory/src', $vendorDir . '/psr/http-message/src'),
+    'Phrity\\Util\\' => array($vendorDir . '/phrity/util-errorhandler/src'),
+    'Phrity\\Net\\' => array($vendorDir . '/phrity/net-uri/src'),
     'Firebase\\JWT\\' => array($vendorDir . '/firebase/php-jwt/src'),
-    'Finnhub\\' => array($vendorDir . '/finnhub/client/lib'),
 );

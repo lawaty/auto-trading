@@ -8,7 +8,7 @@ class DefensiveTrader
 {
   const REDUCTION_FACTOR = 0.99;
 
-  private TradeStation $trade_station;
+  private ITradeStation $trade_station;
   private array $stock;
   private string $order_type;
   private string $action_type;
@@ -20,7 +20,7 @@ class DefensiveTrader
   private int $sid;
   private float $filled_price = 0;
 
-  public function __construct(TradeStation $trade_station, array $stock, string $order_type, string $action_type, int $sid)
+  public function __construct(ITradeStation $trade_station, array $stock, string $order_type, string $action_type, int $sid)
   {
     $this->trade_station = $trade_station;
     $this->stock = $stock;
@@ -33,7 +33,15 @@ class DefensiveTrader
   public function changeStock(int $skip = 0)
   {
     $stock_monitor = new StockMonitor;
-    $symbol = $stock_monitor->getStocks($this->sid, $this->action_type == 'BUY' ? 'buy' : 'short', 1, [$this->stock['symbol']], null, null, $skip)[0]['symbol'];
+    $symbol = $stock_monitor->getStocks(
+      $this->sid,
+      $this->action_type == 'BUY' ? 'buy' : 'short',
+      1,
+      [$this->stock['symbol']],
+      null,
+      null,
+      $skip
+    )[0]['symbol'];
     $this->stock = $this->trade_station->getStock($symbol);
     $this->stock['symbol'] = $symbol;
     $this->stock['price'] = $this->trade_station->getStockEstimatedPrice($symbol, $this->order_type, $this->action_type);
@@ -74,14 +82,16 @@ class DefensiveTrader
       if ($this->quantity < 1)
         throw new InsufficientMoney;
 
-      echo "Spending $budget to {$this->action_type} {$this->quantity} stocks...\n";
+      $spent = $this->quantity * $this->stock['price'];
+      echo "Spending $spent to {$this->action_type} {$this->quantity} stocks...\n";
 
-      $this->order_id = $this->trade_station->placeOrder($this->stock, $this->order_type, $this->action_type, $this->quantity);
+      $this->order_id = $this->trade_station->placeOrder($this->stock, $this->order_type, $this->action_type, ['quantity' => $this->quantity]);
 
       if (!$this->order_id)
         throw new OrderFailed("{$this->order_type} {$this->action_type} Order Not Set");
 
       $this->stock['order_id'] = $this->order_id;
+      $this->stock['quantity'] = $this->quantity;
 
       $order_processed = false;
       $dynamic_delay = 0.3;
@@ -118,42 +128,15 @@ class DefensiveTrader
       $trials++;
       echo "\n";
     } while (!$is_filled && $trials < 4);
+
+    (new TradeMonitor)->add($this->stock);
   }
 
-  public function setOCO(string $close_position, float $danger, float $limit_percent): void
+  public function setStopLoss(string $close_position, float $danger_percent)
   {
-    echo "Setting OCO at " . (new Ndate)->format(Ndate::DATE_TIME) . "\n";
-    $this->stock['quantity'] = $this->trade_station->getExecQuantity($this->stock['order_id']);
+    $this->stock['stop_id'] = $this->trade_station->placeOrder($this->stock, 'StopMarket', $close_position, ['percent' => $danger_percent, 'quantity' => $this->quantity]);
 
-    $is_set = false;
-    $trials = 0;
-    do {
-      // Setting OCO order
-      [$this->stock['stop_id'], $this->stock['limit_id']] = $this->trade_station->placeOCO($this->stock, [[
-        'percent' => $danger,
-        'order_type' => 'StopMarket',
-        'trade_action' => $close_position
-      ], [
-        'percent' => $limit_percent,
-        'order_type' => 'Limit',
-        'trade_action' => $close_position
-      ]]);
-      $trials++;
-
-      // Checking stoploss order status
-      while (true) {
-        $stop_order = $this->trade_station->getOrder($this->stock['stop_id']);
-        $stop_order_status = $stop_order['Status'];
-        if ($stop_order_status == 'REJ') {
-          echo "Stoploss rejected because " . $stop_order['RejectReason'] . "\n";
-          break;
-        } else if ($stop_order_status == 'ACK') {
-          $is_set = true;
-          break;
-        } else
-          Timing::sleep(5);
-      }
-    } while ($is_set === null && $trials < 2);
+    (new TradeMonitor)->update($this->stock);
   }
 
   public function getStock()
@@ -171,7 +154,5 @@ class DefensiveTrader
     return $this->filled_price;
   }
 }
-
-class OrderFailed extends Exception {}
 
 class Rejected extends Exception {}

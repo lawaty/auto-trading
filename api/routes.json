@@ -5,7 +5,7 @@
   "testing/login": "testing/login.php",
   "stockMonitor/getFilters": "GetFilters.php",
   "test": "testing/Test.php",
-  "testing/closePositions": "testing/closeAllPositions.php",
+  "closePositions": "testing/ClosePositions.php",
   "cache-test": "testing/CacheTest.php",
   "testing/processes": "testing/Processes.php",
 
@@ -26,7 +26,6 @@
   "start/{process}": "Start.php",
   "stop/{process}": "Stop.php",
 
-  "clearOrders": "BulkClearOrders.php",
   "operations/{which}": "StockOperations.php",
   "testStocks/{which}": "testing/TestStocks.php",
   "{which}/testStockConds": "testing/TestStockMonitorConds.php" ,

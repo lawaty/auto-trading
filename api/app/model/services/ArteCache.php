@@ -170,6 +170,7 @@ class ArteCache
           $this->data[$key] = $info['data'];
           $this->fetched_at[$key] = new Ndate($info['fetched_at']);
         } catch (UnregisteredLoader $e) {
+          echo "Trying to load unregistered info: $key\n";
           // Silence
         }
       }

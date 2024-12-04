@@ -1,23 +1,29 @@
 <?php
 
-const CLOSING_TOLERANCE = 5; // mins
+const CLOSING_TOLERANCE = 30; // mins
 
 class Sequence
 {
-    const FILLED = 1;
+    const INACTIVE = -1;
+    const RUNNING = 0;
+    const TRAILSTOP = 1;
     const STOPLOSS = 2;
     const TIMEOUT = 3;
+    const FAILED = 4;
 
     private string $which;
+    private string $close_position;
     private array $stock;
     private Config $config;
-    private TradeStation $trade_station;
+    private ITradeStation $trade_station;
+    private TradeMonitor $trade_monitor;
 
     private Ndate $bell;
     private array $stages;
-    private string $close_position;
-    private int $status = -1;
-    private float $filled_price;
+    private int $current_stage = -1;
+    private ?float $sold_price = null;
+
+    private int $status = self::INACTIVE;
 
     private function parseArgs(array $args): void
     {
@@ -28,162 +34,154 @@ class Sequence
         unset($args['sid']);
 
         $this->stock = $args['stock'];
-        $this->filled_price = $this->stock['price'];
     }
 
     public function __construct(array $argv, string $which)
     {
         $this->which = $which;
-        if ($which == 'buy')
-            $this->close_position = "SELL";
-        else
-            $this->close_position = "BUYTOCOVER";
-
+        $this->close_position = $which == 'buy' ? 'SELL' : 'BUYTOCOVER';
         $this->parseArgs($argv);
 
         $this->config = Config::getInst();
         $this->config->refresh();
         $this->bell = new Ndate($this->config['globals']['close_time']);
-        $this->trade_station = new TradeStation(ucfirst($this->which));
+        $this->trade_station = new TradeStation($this->which);
+        $this->trade_monitor = new TradeMonitor;
     }
 
     public function run(): void
     {
+        $this->status = self::RUNNING;
         echo "Started Sequence for {$this->stock['symbol']} at " . (new Ndate)->format(Ndate::DATE_TIME) . "\n";
 
         //////////////////////////// Trading Sequence
-        $is_filled = false;
-        foreach ($this->stages as $i => $stage_config) {
-            echo "\nStage $i: {$stage_config['percent']} limit\n";
-            $this->stock['quantity'] = $this->trade_station->getExecQuantity($this->stock['order_id']);
-            echo "Actual Executed Quantity: " . $this->stock['quantity'] . "\n";
+        $filled_price = $this->stock['price'];
 
-            // Stage 0 is the base limit price and it is supposed to be already set with the order.
-            if ($i > 0)
-                $this->stock['limit_id'] = $this->trade_station->editOrder($this->stock, $this->stock['limit_id'], [
-                    'order_type' => 'Limit',
-                    'trade_action' => $this->close_position,
-                    'percent' => $stage_config['percent']
-                ]);
+        $streamer = $this->trade_station->getStreamer($this->stock['symbol']);
 
+        $streamer->setStreamCallback(function ($details) use ($filled_price) {
+            static $meaningful_data_inst = -1;
+            if (!isset($details['Bid']) && !isset($details['Last']))
+                return true;
 
-            // busy wait until limit is exceeded for all items or wait_time finishes
-            echo "Waiting till limit filled or " . $stage_config['wait_time'] . " mins pass\n";
-            $is_filled = $this->waitFilling($stage_config['wait_time'] * 60);
+            $current_price = $details['Bid'] ?? $details['Last'];
 
-            if ($is_filled || $this->aboutToClose())
-                break;
+            if ($meaningful_data_inst != -1) {
+                $latency = microtime(true) - $meaningful_data_inst;
+                $meaningful_data_inst = microtime(true);
+            } else {
+                $latency = 0;
+                $meaningful_data_inst = microtime(true);
+            }
+
+            $percent_increase = ($current_price - $filled_price) / $filled_price;
+            echo "Stock Increase: $percent_increase after $latency secs\n";
+
+            if ($this->stoplossTriggered()) {
+                echo "Stoploss Triggered with price {$this->sold_price}. Leaving...\n";
+                $this->status = self::STOPLOSS;
+                return false;
+            }
+
+            if ($this->aboutToClose()) {
+                echo "Market about to close. Selling with the current profit whatever it was. \n";
+                $this->trade_station->closePosition($this->trade_monitor->get($this->stock['symbol']));
+                $this->trade_monitor->remove($this->stock['symbol']);
+                $this->status = self::TIMEOUT;
+                return false;
+            }
+
+            $stage_i = $this->getStageIndex($percent_increase);
+            if ($stage_i > $this->current_stage) {
+                echo "Moved to Stage $stage_i with trailing at {$this->stages[$stage_i]['trail']}\n";
+                $trail_price = $filled_price * (1 + $this->stages[$stage_i]['trail']);
+                try {
+                    $this->trade_station->editOrder($this->stock, $this->stock['stop_id'], [
+                        'percent' => $this->stages[$stage_i]['trail'],
+                        'TradeAction' => $this->close_position,
+                        'OrderType' => 'StopMarket'
+                    ]);
+                    echo "Stoploss is set to {$trail_price}\n";
+
+                    $this->current_stage = $stage_i;
+                } catch (OrderFailed $e) {
+                    echo "Couldn't Replace Order StopPrice: " . trace($e) . "\n";
+                }
+            }
+
+            return true;
+        });
+
+        echo "Starting trade stream. No trailstop is set currently\n";
+        try {
+            $streamer->stream();
+        } catch (StreamRejected $e) {
+            echo "Tradestation stream has been unexpectedly closed. \n";
+            $this->trade_station->closePosition($this->trade_monitor->get($this->stock['symbol']));
+            $this->status = self::FAILED;
+        } finally {
+            $this->trade_monitor->remove($this->stock['symbol']);
+        }
+    }
+
+    private function stoplossTriggered()
+    {
+        static $lastFetchTime = 0;
+
+        $currentTime = microtime(true);
+        if ($currentTime - $lastFetchTime < 4)
+            return false;
+
+        $lastFetchTime = $currentTime;
+
+        if (!isset($this->stock['stop_id']))
+            return false;
+
+        $order = $this->trade_station->getOrder($this->stock['stop_id']);
+        $status = $order['Status'];
+
+        if (!in_array($status, ['FLL', 'OUT', 'ACK', 'OPN'])) {
+            echo "Weird Stoploss Order Status. Here is the order\n";
+            prettyPrint($order);
         }
 
-        (new TradeMonitor)->remove($this->stock['symbol']);
+        if ($status == 'FLL')
+            $this->sold_price = $order['FilledPrice'];
+        return $status == 'FLL';
+    }
 
-        if (!$is_filled) {
-            $this->stock['quantity'] = $this->trade_station->getExecQuantity($this->stock['order_id']);
+    private function getStageIndex(float $percent_increase): ?int
+    {
+        $i = -1;
+        while (
+            isset($this->stages[$i + 1]) &&
+            (
+                $this->which == 'buy' && $this->stages[$i + 1]['trigger'] < $percent_increase ||
+                $this->which == 'short' && $this->stages[$i + 1]['trigger'] > $percent_increase
+            )
+        )
+            $i++;
 
-            StockLogger::logStock(
-                ucfirst($this->which),
-                "Cancel OCO",
-                [
-                    ...$this->stock,
-                    'OrderID' => -1,
-                    'price' => '-'
-                ]
-            );
-
-            $this->trade_station->closePosition([
-                'order_id' => $this->stock['order_id'],
-                'limit_id' => $this->stock['limit_id'],
-                'stop_id' => $this->stock['stop_id']
-            ]);
-            
-            echo "Failed; to reach any of the limits, Closing positions anyways\n";
-            $this->status = self::TIMEOUT;
-        } else {
-            if ($is_filled[1]) {
-                $loss_percent = $is_filled[3] / $this->filled_price - 1;
-                echo "FilledPrice: {$is_filled[3]} with loss percentage $loss_percent \n";
-            };
-
-            StockLogger::logStock(
-                ucfirst($this->which),
-                "Limit " . $is_filled[0],
-                [
-                    ...$this->stock,
-                    'OrderID' => -1,
-                    'price' => $is_filled[2]
-                ]
-            );
-
-            StockLogger::logStock(
-                ucfirst($this->which),
-                "StopLoss " . $is_filled[1],
-                [
-                    ...$this->stock,
-                    'OrderID' => -1,
-                    'price' => $is_filled[3]
-                ]
-            );
-
-            $this->status = $is_filled[0] == 'FLL' ? self::FILLED : self::STOPLOSS;
-        }
+        return $i;
     }
 
     private function aboutToClose()
     {
-        if ((new Ndate)->minutesUntil($this->bell) < CLOSING_TOLERANCE)
+        $about_to_close = (new Ndate)->minutesUntil($this->bell) < CLOSING_TOLERANCE;
+        echo "Leaving Market in " . (new Ndate)->minutesUntil($this->bell) - CLOSING_TOLERANCE . " mins\n";
+        if ($about_to_close)
             echo "Approached Market End\n";
 
-        return (new Ndate)->minutesUntil($this->bell) < CLOSING_TOLERANCE;
-    }
-
-    private function waitFilling(int $secs)
-    {
-        $start = time();
-        while (time() - $start < $secs) {
-            $limit_order = $this->trade_station->getOrder($this->stock['limit_id']);
-            $stop_order = $this->trade_station->getOrder($this->stock['stop_id']);
-
-            if (!$limit_order || !$stop_order) {
-                echo "Limit order or stop order not found \n";
-                var_dump($limit_order, $stop_order);
-                sleep(15);
-                continue;
-            }
-
-            $limit_status = $limit_order['Status'];
-            $stop_status = $stop_order['Status'];
-
-            echo "Limit: $limit_status \n";
-            echo "StopLoss: $stop_status \n";
-
-            if ($limit_status == 'FLL' || $stop_status == 'FLL')
-                return [$limit_status, $stop_status, $limit_order['FilledPrice'] ?? null, $stop_order['FilledPrice'] ?? null];
-
-            if (!in_array($limit_status, ['ACK', 'OPN'])) {
-                echo "Weird Limit Order Status. Here is the order\n";
-                prettyPrint($limit_order);
-            }
-
-            if (!in_array($stop_status, ['ACK', 'OPN'])) {
-                echo "Weird Stoploss Order Status. Here is the order\n";
-                prettyPrint($stop_order);
-            }
-
-            if ($this->aboutToClose() || $limit_status == 'OUT' && $stop_status == 'OUT')
-                return false;
-
-            sleep(20);
-        }
-        return false;
-    }
-
-    public function getStatus(): int
-    {
-        return $this->status;
+        return $about_to_close;
     }
 
     public function getStock(): array
     {
         return $this->stock;
+    }
+
+    public function getStatus(): int
+    {
+        return $this->status;
     }
 }

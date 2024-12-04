@@ -7,13 +7,14 @@ if (!function_exists('str_contains')) {
   }
 }
 
-function countdown(string $event, int $secs) {
-             $minutes = floor($secs / 60);
-        $seconds = $secs % 60;
+function countdown(string $event, int $secs)
+{
+  $minutes = floor($secs / 60);
+  $seconds = $secs % 60;
   echo "Waiting $minutes minutes and $seconds seconds to trigger the event '$event'\n";
-	sleep($secs);
+  sleep($secs);
 
-    echo "\nEvent '$event' triggered.\n";
+  echo "\nEvent '$event' triggered.\n";
 }
 
 
@@ -31,35 +32,34 @@ function isJson($payload)
 
 function trace($e, $seen = null): string
 {
-    $starter = $seen ? 'Caused by: ' : '';
-    $result = array();
-    $trace = $e->getTrace();
-    $prev = $e->getPrevious();
-    $result[] = sprintf('%s%s: %s', $starter, get_class($e), $e->getMessage());
-    $file = $e->getFile();
-    $line = $e->getLine();
-    while (true) {
-        $current = "$file:$line";
-        $result[] = sprintf(
-            ' at %s%s%s(%s%s%s)',
-            count($trace) && array_key_exists('class', $trace[0]) ? str_replace('\\', '.', $trace[0]['class']) : '',
-            count($trace) && array_key_exists('class', $trace[0]) && array_key_exists('function', $trace[0]) ? '.' : '',
-            count($trace) && array_key_exists('function', $trace[0]) ? str_replace('\\', '.', $trace[0]['function']) : '(main)',
-            $line === null ? $file : basename($file),
-            $line === null ? '' : ':',
-            $line === null ? '' : $line
-        );
-        if (!count($trace))
-            break;
-        $file = array_key_exists('file', $trace[0]) ? $trace[0]['file'] : 'Unknown Source';
-        $line = array_key_exists('file', $trace[0]) && array_key_exists('line', $trace[0]) ? $trace[0]['line'] : null;
-        array_shift($trace);
-    }
-    $result = join("\n", $result);
-    if ($prev)
-        $result .= "\n" . trace($prev, $seen);
+  $starter = $seen ? 'Caused by: ' : '';
+  $result = array();
+  $trace = $e->getTrace();
+  $prev = $e->getPrevious();
+  $result[] = sprintf('%s%s: %s', $starter, get_class($e), $e->getMessage());
+  $file = $e->getFile();
+  $line = $e->getLine();
+  while (true) {
+    $result[] = sprintf(
+      ' at %s%s%s(%s%s%s)',
+      count($trace) && array_key_exists('class', $trace[0]) ? str_replace('\\', '.', $trace[0]['class']) : '',
+      count($trace) && array_key_exists('class', $trace[0]) && array_key_exists('function', $trace[0]) ? '.' : '',
+      count($trace) && array_key_exists('function', $trace[0]) ? str_replace('\\', '.', $trace[0]['function']) : '(main)',
+      $line === null ? $file : basename($file),
+      $line === null ? '' : ':',
+      $line === null ? '' : $line
+    );
+    if (!count($trace))
+      break;
+    $file = array_key_exists('file', $trace[0]) ? $trace[0]['file'] : 'Unknown Source';
+    $line = array_key_exists('file', $trace[0]) && array_key_exists('line', $trace[0]) ? $trace[0]['line'] : null;
+    array_shift($trace);
+  }
+  $result = join("\n", $result);
+  if ($prev)
+    $result .= "\n" . trace($prev, $seen);
 
-    return $result;
+  return $result;
 }
 
 
@@ -110,7 +110,8 @@ function prettyPrint(array $arr)
   echo '<pre>';
   print_r($arr);
   echo '</pre>';
-  echo "\n\n"; /** @todo move this line from core */
+  echo "\n\n";
+  /** @todo move this line from core */
 }
 
 function copyDirectory($source, $destination)

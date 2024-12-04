@@ -2,6 +2,7 @@
 
 class Config implements ArrayAccess
 {
+  const JSONS_DIR = MODEL_DIR . "/jsons";
   private array $config;
   private static Config $inst;
 
@@ -24,7 +25,7 @@ class Config implements ArrayAccess
   public function refresh()
   {
     while (true) {
-      $json_data = file_get_contents(JSONS_DIR . "/params.json");
+      $json_data = file_get_contents(self::JSONS_DIR . "/params.json");
       $data = json_decode($json_data, true);
 
       if ($data)
@@ -32,6 +33,25 @@ class Config implements ArrayAccess
     }
 
     $this->config = $data;
+
+    # TODO: This validation needs to be implemented in the setParams endpoint
+
+    foreach($this->config['buy'] as &$run) {
+      $run['stop_loss_percent'] = -abs($run['stop_loss_percent']);
+      foreach($run['sequences'] as &$sequence) {
+        $sequence['trigger'] = abs($sequence['trigger']);
+        $sequence['trail'] = abs($sequence['trail']);
+      }
+    }
+
+    foreach($this->config['short'] as &$run) {
+      $run['stop_loss_percent'] = abs($run['stop_loss_percent']);
+
+      foreach($run['sequences'] as &$sequence) {
+        $sequence['trigger'] = - abs($sequence['trigger']);
+        $sequence['trail'] = - abs($sequence['trail']);
+      }
+    }
   }
 
   public function offsetExists(mixed $offset): bool

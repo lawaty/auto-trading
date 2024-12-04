@@ -7,7 +7,7 @@ class Stop extends Authenticated
     $this->init([
       'process' => [true, "/^(Buy|Short)$/"],
       'graceful' => [true, Regex::ZERO_ONE]
-    ], $_POST);
+    ], $_REQUEST);
   }
 
   public function handle(): Response
@@ -15,7 +15,6 @@ class Stop extends Authenticated
     if (!count(Process::getAllByName('updateMarketTiming'))) {
       $new_process = new Process("updateMarketTiming", LOG_DIR . '/market-timing-' . (new Ndate)->format(Ndate::DATE) . '.log');
       $new_process->run(Process::BACKGROUND);
-      sleep(10);
     }
 
     $monitor = new TradeMonitor;
@@ -38,6 +37,11 @@ class Stop extends Authenticated
           $monitor->remove($symbol);
         }
       }
+    }
+
+    foreach ($monitor->getAll() as $symbol => $trade) {
+      $tradestation->closePosition($trade);
+      $monitor->remove($symbol);
     }
 
     return new Response;

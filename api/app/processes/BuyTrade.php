@@ -25,23 +25,24 @@ $stock['symbol'] = $args['symbol'];
 
 $buyer = new DefensiveTrader($tradestation, $stock, 'Market', 'BUY', $args['sid']);
 $buyer->setBudget($args['budget']);
+
+// Stub Here
 if (isset($args['max_quantity']))
   $buyer->setMaxQuantity($args['max_quantity']);
+$buyer->setMaxQuantity(10); // Stub
 
 $time_taken = microtime(true) - $start;
 echo "$time_taken secs taken to initialize the process.\n";
 
 $start = microtime(true);
 
-$trails = 0;
-$monitor = new TradeMonitor;
-while ($trails < 3) {
-  $trails++;
+$trials = 0;
+while ($trials < 3) {
+  $trials++;
   try {
     $buyer->run();
-    $buyer->setOCO('SELL', $args['stop_loss_percent'], $args['sequences'][0]['percent']);
+    $buyer->setStopLoss('SELL', $args['stop_loss_percent']);
     $stock = $buyer->getStock();
-    $monitor->add($stock);
     $time_taken = microtime(true) - $start;
     echo "$time_taken secs taken to initialize the trading process in tradestation.\n";
     $passed = true;
@@ -57,13 +58,13 @@ while ($trails < 3) {
     echo "$time_taken secs taken to order in tradestation.\n";
     exit;
   } catch (Rejected $e) {
-    $monitor->add([$stock['symbol']]);
+    (new TradeMonitor)->add([$stock['symbol']]);
     $buyer->changeStock($args['skip'] ?? 0);
   }
 }
 
 if (!$passed) {
-  echo "Consumed all the available trails and couldn't buy any stocks\n";
+  echo "Consumed all the available trials and couldn't buy any stocks\n";
   $time_taken = microtime(true) - $start;
   echo "$time_taken secs taken to order in tradestation.\n";
   exit;

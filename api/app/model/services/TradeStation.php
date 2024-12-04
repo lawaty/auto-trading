@@ -2,7 +2,7 @@
 
 const BUYING_TOLERANCE = 0.98;
 
-class TradeStation
+class TradeStation implements ITradeStation
 {
     private string $api_key = 'lMujDTbmHrqZ5a7EkPSyskivY9doHu54';
     private string $api_secret = 'AIK6Sot-Nz_QbwbOUuL5TuYZx741S978Jnie3pRQUt7PwusNBA4KdbcV8epUdRzg';
@@ -76,8 +76,8 @@ class TradeStation
         return $this->curl("{$this->api_base}/orderexecution/orders/$order_id", "DELETE", [], [], true);
     }
 
-    public function curl(string $url, string $type, array $data = [], array $headers = [], $logging = false): mixed
-    // public function curl(string $url, string $type, array $data = [], array $headers = [], $logging = true): mixed // stub: logging set to true for debugging
+    // private function curl(string $url, string $type, array $data = [], array $headers = [], $logging = false): mixed
+    public function curl(string $url, string $type, array $data = [], array $headers = [], $logging = true): mixed // stub: logging set to true for debugging
     {
         $this->access_token = ArteCache::getInst()->get('tradestation_access_token');
 
@@ -105,7 +105,7 @@ class TradeStation
         return $response;
     }
 
-    public function loadSettings()
+    private function loadSettings()
     {
         $this->params = Config::getInst()->toArray();
         $this->account_id = $this->params['globals']['account_id'];
@@ -170,7 +170,7 @@ class TradeStation
         return $response['Balances'][0]['Equity'] ?? null;
     }
 
-    public function getBuyingPower()
+    public function getBuyingPower(): null|float
     {
         $account_id = $this->account_id;
         $balance_url = $this->api_base . "/brokerage/accounts/$account_id/balances";
@@ -195,7 +195,7 @@ class TradeStation
         return $this->curl("marketdata/quotes/$symbol", "GET")['Quotes'][0] ?? null;
     }
 
-    public function getStockEstimatedPrice($stock_symbol, $order_type, $trade_action)
+    public function getStockEstimatedPrice($stock_symbol, $order_type, $trade_action): null|float
     {
         $account_id = $this->account_id;
         $execution_url = $this->api_base . "/orderexecution/orderconfirm";
@@ -228,15 +228,18 @@ class TradeStation
         }
     }
 
-    public function placeOrder(array $stock, string $order_type, string $trade_action, int $quantity = null, float $percent = 0): ?int
+    public function placeOrder(array $stock, string $order_type, string $trade_action, array $args = []): ?int
     {
+        $percent = $args['percent'] ?? 0;
+        $quantity = $args['quantity'] ?? null;
+
         $percent += 1;
 
         $account_id = $this->account_id;
         $ordering_url = $this->api_base . "/orderexecution/orders";
 
         $stock_quantity = $stock['quantity'] ?? $quantity;
-        if ($stock_quantity == 0)
+        if ($stock_quantity === 0)
             throw new InsufficientMoney;
 
         if ($order_type != 'Market')
@@ -256,7 +259,20 @@ class TradeStation
             $data['LimitPrice'] = "$stock_price";
 
         else if ($order_type == 'StopMarket')
-            $data['StopPrice'] = "$stock_price";
+            if (isset($args['trailStop']))
+                $data['AdvancedOptions'] = [
+                    'TrailingStop' => [
+                        'Percent' => round(abs($percent - 1) * 100, 2),
+                    ]
+                ];
+            else {
+                if ($this->which == 'buy')
+                    $rounded = ceil($stock_price * 100) / 100;
+                else
+                    $rounded = floor($stock_price * 100) / 100;
+
+                $data['StopPrice'] = number_format($rounded, 2, '.', '');
+            }
 
         // echo "\n$order_type $trade_action:\n";
         // print_r($data);
@@ -308,7 +324,7 @@ class TradeStation
 
             $adjusted_price = $stock['price'] * $operation['percent'];
 
-            if ($operation['order_type'] != 'StopMarket')
+            if ($operation['OrderType'] != 'StopMarket')
                 $price = round($adjusted_price, 2);
             else {
                 if ($this->which == 'buy')
@@ -316,31 +332,32 @@ class TradeStation
                 else
                     $price = floor($adjusted_price * 100) / 100;
             }
+
             $formatted = number_format($price, 2, '.', '');
 
-            echo "{$operation['order_type']} {$operation['trade_action']} with price $formatted at " . (new Ndate)->format(Ndate::DATE_TIME) . " \n";
+            echo "{$operation['OrderType']} {$operation['TradeAction']} with price $formatted at " . (new Ndate)->format(Ndate::DATE_TIME) . " \n";
 
             $order_data = [
                 "AccountID" => $account_id,
                 "Symbol" => $stock['symbol'],
                 "Quantity" => "$stock_quantity",
-                "OrderType" => $operation['order_type'],
-                "TradeAction" => $operation['trade_action'],
+                "OrderType" => $operation['OrderType'],
+                "TradeAction" => $operation['TradeAction'],
                 "TimeInForce" => ["Duration" => "DAY"],
                 "Route" => "Intelligent"
             ];
 
-            if ($operation['order_type'] == 'StopMarket') {
-                // $trail_price = number_format(max(abs($price - $stock['price']), 0.01), 2, '.', '');
-                $order_data["StopPrice"] = number_format($formatted, 2, '.', '');
-                // $order_data['AdvancedOptions'] = [
-                //     'TrailingStop' => [
-                //         'Percent' => round(abs($operation['percent'] - 1) * 100, 2),
-                //     ]
-                // ];
+            if ($operation['OrderType'] == 'StopMarket') {
+                $trail_price = number_format(max(abs($price - $stock['price']), 0.01), 2, '.', '');
+                // $order_data["StopPrice"] = number_format($formatted, 2, '.', '');
+                $order_data['AdvancedOptions'] = [
+                    'TrailingStop' => [
+                        'Percent' => round(abs($operation['percent'] - 1) * 100, 2),
+                    ]
+                ];
 
-                // echo "TrailingStop: $trail_price\n";
-            } else if ($operation['order_type'] == 'Limit')
+                echo "TrailingStop: $trail_price\n";
+            } else if ($operation['OrderType'] == 'Limit')
                 $order_data['LimitPrice'] = "$formatted";
 
             $payload['Orders'][] = $order_data;
@@ -362,7 +379,7 @@ class TradeStation
         if (isset($response['Orders'][0]['OrderID'])) {
             $operations_str = [];
             foreach ($operations as $operation)
-                $operations_str[] = "{$operation['order_type']} {$operation['trade_action']}";
+                $operations_str[] = "{$operation['OrderType']} {$operation['TradeAction']}";
 
             $operations_str = implode(', ', $operations_str);
 
@@ -385,8 +402,8 @@ class TradeStation
 
     public function editOrder(array $stock, int $order_id, array $data): ?int
     {
-        if (!isset($data['order_type']) || !isset($data['trade_action']))
-            throw new InvalidArguments("Data must have order_type and trade_action parameters");
+        if (!isset($data['OrderType']) || !isset($data['TradeAction']))
+            throw new InvalidArguments("Data must have OrderType and TradeAction parameters");
 
         $put_url = $this->api_base . "/orderexecution/orders/" . $order_id;
         $headers = [
@@ -397,19 +414,15 @@ class TradeStation
         if (isset($data['percent'])) {
             $data['percent'] += 1;
             if ($data['percent'] < 1)
-                $temp['price'] = floor($data['percent'] * $stock['price'] * 100) / 100;
-            else
                 $temp['price'] = ceil($data['percent'] * $stock['price'] * 100) / 100;
+            else
+                $temp['price'] = floor($data['percent'] * $stock['price'] * 100) / 100;
 
             $temp['price'] = number_format($temp['price'], 2, '.', '');
 
-            echo "\n\n";
-            var_dump($data['order_type'] . " " . $data['trade_action'], $data['percent'], $stock['price'], $temp['price']);
-            echo "\n\n";
-
-            if ($data['order_type'] == 'Limit')
+            if ($data['OrderType'] == 'Limit')
                 $data['LimitPrice'] = "{$temp['price']}";
-            else if ($data['order_type'] == 'StopMarket')
+            else if ($data['OrderType'] == 'StopMarket')
                 $data['StopPrice'] = "{$temp['price']}";
 
             unset($data['percent']);
@@ -417,12 +430,12 @@ class TradeStation
 
         StockLogger::logStock(
             ucfirst($this->which),
-            "Replaced {$data['order_type']} {$data['trade_action']}",
+            "Replaced {$data['OrderType']} {$data['TradeAction']}",
             $temp
         );
 
-        unset($data['trade_action']);
-        unset($data['order_type']);
+        // unset($data['TradeAction']);
+        // unset($data['OrderType']);
 
         $response = $this->curl($put_url, 'PUT', $data, $headers, true);
 
@@ -431,6 +444,7 @@ class TradeStation
             echo __FUNCTION__ . "\n";
             prettyPrint($data);
             prettyPrint($response);
+            throw new OrderFailed($error);
         }
 
         return $response['OrderID'] ?? $response['Orders'][0]['OrderID'] ?? null;
@@ -450,7 +464,7 @@ class TradeStation
         return $response['Orders'][0] ?? null;
     }
 
-    public function getExecQuantity($order_id)
+    public function getExecQuantity($order_id): int
     {
         $account_id = $this->account_id;
         $exec_url = $this->api_base . "/brokerage/accounts/$account_id/orders/" . $order_id;
@@ -461,13 +475,23 @@ class TradeStation
         return $exec_quantity;
     }
 
-    public function closePosition(array $ids): void
+    public function closePosition(array $trade): void
     {
-        if (isset($ids['limit_id']) && isset($ids['stop_id']) && isset($ids['order_id'])) {
-            $this->cancel($ids['limit_id']);
-            $this->cancel($ids['stop_id']);
-            $this->placeOrder($ids, 'Market', $this->close_position);
-        }
+        if (isset($trade['stop_id']))
+            $this->cancel($trade['stop_id']);
+
+        $this->placeOrder($trade, 'Market', $this->close_position, ['quantity' => $trade['quantity']]);
+    }
+
+    public function getStreamer(string $csv_symbols): ArteCurl
+    {
+        $streamer = new ArteCurl("$this->api_base/marketdata/stream/quotes/$csv_symbols");
+
+        $streamer->setHeaders([
+            'Authorization' => "Bearer " . $this->getAccessToken()
+        ]);
+
+        return $streamer;
     }
 }
 

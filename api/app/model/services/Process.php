@@ -12,12 +12,21 @@ class Process
     private array $args = [];
     private static bool $inited = false;
 
-    public function getLogger()
+    private function initLogger(string $log = null)
     {
-        if (!isset($this->log))
-            $this->log = fopen($this->log_path, "a");
+        $this->log_path = $log ?? LOG_DIR . "/processes/" . (new Ndate)->format() . "/$this->process_name";
 
-        return $this->log;
+        if (!isset($this->log)) {
+            if (str_contains($this->log_path, LOG_DIR . "/processes/" . (new Ndate)->format()) && !is_dir(LOG_DIR . "/processes/" . (new Ndate)->format()))
+                mkdir(LOG_DIR . "/processes/" . (new Ndate)->format());
+
+            $j = 1;
+            while (file_exists("{$this->log_path}-$j.log"))
+                $j++;
+
+            $this->log_path = "{$this->log_path}-$j.log";
+            $this->log = fopen($this->log_path, "a");
+        }
     }
 
     public function log(string $something)
@@ -28,7 +37,7 @@ class Process
             $this->truncateLastLine();
         }
 
-        fwrite($this->getLogger(), "$something — at " . ((new Ndate)->format(Ndate::DATE_TIME)) . "\n");
+        fwrite($this->log, "$something — at " . ((new Ndate)->format(Ndate::DATE_TIME)) . "\n");
     }
 
     private function truncateLastLine()
@@ -57,10 +66,9 @@ class Process
             $process_name = explode('.php', $process_name)[0];
 
         $this->process_name = $process_name;
-        $this->log_path = $log ?? LOG_DIR . "/processes/$this->process_name-" . (new Ndate)->format() . ".log";
-
         $this->os = $_ENV['OS'];
-        $this->getLogger();
+
+        $this->initLogger($log);
     }
 
     public static function getProcess(int $pid): ?Process

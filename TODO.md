@@ -1,3 +1,0 @@
-1. DTOs: Use DTOs to validate data like Stock, run, process input, etc...
-2. Implement Mocks for tradestation to allow testing outside the market safely
-3. Rework updateMarketTiming 

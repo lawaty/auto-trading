@@ -1,5 +1,7 @@
 <?php
 
+const MIN_WAIT = 5; // secs
+
 class Timing
 {
   private Config $config;
@@ -13,8 +15,6 @@ class Timing
 
   public function waitTill(mixed $date): void
   {
-    // return ; // stub
-
     if (!($date instanceof Ndate))
       $date = new Ndate($date);
 

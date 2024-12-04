@@ -25,23 +25,24 @@ $stock['symbol'] = $args['symbol'];
 
 $buyer = new DefensiveTrader($tradestation, $stock, 'Market', 'SELLSHORT', $args['sid']);
 $buyer->setBudget($args['budget']);
+
+// Stub Here
 if (isset($args['max_quantity']))
   $buyer->setMaxQuantity($args['max_quantity']);
+$buyer->setMaxQuantity(10); // Stub
 
 $time_taken = microtime(true) - $start;
 echo "$time_taken secs taken to initialize the process.\n";
 
 $start = microtime(true);
 
-$monitor = new TradeMonitor;
 $trails = 0;
 while ($trails < 3) {
   $trails++;
   try {
     $buyer->run();
-    $buyer->setOCO('BUYTOCOVER', $args['stop_loss_percent'], $args['sequences'][0]['percent']);
+    $buyer->setStopLoss('BUYTOCOVER', $args['stop_loss_percent']);
     $stock = $buyer->getStock();
-    $monitor->add($stock);
     $time_taken = microtime(true) - $start;
     echo "$time_taken secs taken to order in tradestation.\n";
     $passed = true;
@@ -57,7 +58,7 @@ while ($trails < 3) {
     echo "$time_taken secs taken to order in tradestation.\n";
     exit;
   } catch (Rejected $e) {
-    $monitor->add([$stock['symbol']]);
+    (new TradeMonitor)->add([$stock['symbol']]);
     $buyer->changeStock($args['skip']);
   }
 }
@@ -68,7 +69,6 @@ if (!$passed) {
   echo "$time_taken secs taken to order in tradestation.\n";
   exit;
 }
-
 
 $args['stock'] = $buyer->getStock();
 

@@ -6,82 +6,160 @@ namespace Composer\Autoload;
 
 class ComposerStaticInitce5c1dc5205a7536c1ef301a25554af5
 {
-    public static $files = array (
-        '7b11c4dc42b3b3023073cb14e519683c' => __DIR__ . '/..' . '/ralouphie/getallheaders/src/getallheaders.php',
-        'e69f7f6ee287b969198c3c9d6777bd38' => __DIR__ . '/..' . '/symfony/polyfill-intl-normalizer/bootstrap.php',
-        '25072dd6e2470089de65ae7bf11d3109' => __DIR__ . '/..' . '/symfony/polyfill-php72/bootstrap.php',
-        'c964ee0ededf28c96ebd9db5099ef910' => __DIR__ . '/..' . '/guzzlehttp/promises/src/functions_include.php',
-        'a0edc8309cc5e1d60e3047b5df6b7052' => __DIR__ . '/..' . '/guzzlehttp/psr7/src/functions_include.php',
-        'f598d06aa772fa33d905e87be6398fb1' => __DIR__ . '/..' . '/symfony/polyfill-intl-idn/bootstrap.php',
-        '37a3dc5111fe8f707ab4c132ef1dbc62' => __DIR__ . '/..' . '/guzzlehttp/guzzle/src/functions_include.php',
-    );
-
     public static $prefixLengthsPsr4 = array (
-        'S' => 
+        'W' => 
         array (
-            'Symfony\\Polyfill\\Php72\\' => 23,
-            'Symfony\\Polyfill\\Intl\\Normalizer\\' => 33,
-            'Symfony\\Polyfill\\Intl\\Idn\\' => 26,
+            'WebSocket\\' => 10,
         ),
         'P' => 
         array (
+            'Psr\\Log\\' => 8,
             'Psr\\Http\\Message\\' => 17,
-        ),
-        'G' => 
-        array (
-            'GuzzleHttp\\Psr7\\' => 16,
-            'GuzzleHttp\\Promise\\' => 19,
-            'GuzzleHttp\\' => 11,
+            'Phrity\\Util\\' => 12,
+            'Phrity\\Net\\' => 11,
         ),
         'F' => 
         array (
             'Firebase\\JWT\\' => 13,
-            'Finnhub\\' => 8,
         ),
     );
 
     public static $prefixDirsPsr4 = array (
-        'Symfony\\Polyfill\\Php72\\' => 
+        'WebSocket\\' => 
         array (
-            0 => __DIR__ . '/..' . '/symfony/polyfill-php72',
+            0 => __DIR__ . '/..' . '/textalk/websocket/lib',
         ),
-        'Symfony\\Polyfill\\Intl\\Normalizer\\' => 
+        'Psr\\Log\\' => 
         array (
-            0 => __DIR__ . '/..' . '/symfony/polyfill-intl-normalizer',
-        ),
-        'Symfony\\Polyfill\\Intl\\Idn\\' => 
-        array (
-            0 => __DIR__ . '/..' . '/symfony/polyfill-intl-idn',
+            0 => __DIR__ . '/..' . '/psr/log/src',
         ),
         'Psr\\Http\\Message\\' => 
         array (
-            0 => __DIR__ . '/..' . '/psr/http-message/src',
+            0 => __DIR__ . '/..' . '/psr/http-factory/src',
+            1 => __DIR__ . '/..' . '/psr/http-message/src',
         ),
-        'GuzzleHttp\\Psr7\\' => 
+        'Phrity\\Util\\' => 
         array (
-            0 => __DIR__ . '/..' . '/guzzlehttp/psr7/src',
+            0 => __DIR__ . '/..' . '/phrity/util-errorhandler/src',
         ),
-        'GuzzleHttp\\Promise\\' => 
+        'Phrity\\Net\\' => 
         array (
-            0 => __DIR__ . '/..' . '/guzzlehttp/promises/src',
-        ),
-        'GuzzleHttp\\' => 
-        array (
-            0 => __DIR__ . '/..' . '/guzzlehttp/guzzle/src',
+            0 => __DIR__ . '/..' . '/phrity/net-uri/src',
         ),
         'Firebase\\JWT\\' => 
         array (
             0 => __DIR__ . '/..' . '/firebase/php-jwt/src',
         ),
-        'Finnhub\\' => 
-        array (
-            0 => __DIR__ . '/..' . '/finnhub/client/lib',
-        ),
     );
 
     public static $classMap = array (
+        'Add' => __DIR__ . '/../..' . '/app/endpoints/exstocks/Add.php',
+        'ArteCache' => __DIR__ . '/../..' . '/app/model/services/ArteCache.php',
+        'ArteCurl' => __DIR__ . '/../..' . '/core/services/ArteCurl.php',
+        'ArteLogger' => __DIR__ . '/../..' . '/core/proxy/Logger.php',
+        'ArteRouter' => __DIR__ . '/../..' . '/core/proxy/Router.php',
+        'Assertion' => __DIR__ . '/../..' . '/core/bases/Testable.php',
+        'Authenticated' => __DIR__ . '/../..' . '/app/bases/Authenticated.php',
+        'Authenticator' => __DIR__ . '/../..' . '/core/services/Authenticator.php',
+        'Authorization' => __DIR__ . '/../..' . '/core/database/phpliteadmin.php',
+        'BulkClearOrders' => __DIR__ . '/../..' . '/app/endpoints/BulkClearOrders.php',
+        'CacheTest' => __DIR__ . '/../..' . '/app/endpoints/testing/CacheTest.php',
+        'ClosePositions' => __DIR__ . '/../..' . '/app/endpoints/testing/ClosePositions.php',
+        'ColumnAlreadyExists' => __DIR__ . '/../..' . '/core/database/DB.php',
+        'ColumnNotFound' => __DIR__ . '/../..' . '/core/database/DB.php',
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
-        'Normalizer' => __DIR__ . '/..' . '/symfony/polyfill-intl-normalizer/Resources/stubs/Normalizer.php',
+        'Config' => __DIR__ . '/../..' . '/app/model/services/Config.php',
+        'ConstraintAlreadyExists' => __DIR__ . '/../..' . '/core/database/DB.php',
+        'CustomEntity' => __DIR__ . '/../..' . '/core/bases/CustomEntity.php',
+        'CustomMapper' => __DIR__ . '/../..' . '/core/bases/CustomMapper.php',
+        'DB' => __DIR__ . '/../..' . '/core/database/DB.php',
+        'Database' => __DIR__ . '/../..' . '/core/database/phpliteadmin.php',
+        'Day' => __DIR__ . '/../..' . '/app/model/entities/Day.php',
+        'DayMapper' => __DIR__ . '/../..' . '/app/model/mappers/DayMapper.php',
+        'DefensiveTrader' => __DIR__ . '/../..' . '/app/model/services/DefensiveTrader.php',
+        'Delete' => __DIR__ . '/../..' . '/app/endpoints/exstocks/Delete.php',
+        'DemoTradeStation' => __DIR__ . '/../..' . '/app/model/mocks/DemoTradeStation.php',
+        'Endpoint' => __DIR__ . '/../..' . '/core/bases/Endpoint.php',
+        'Entities' => __DIR__ . '/../..' . '/core/helpers/Entities.php',
+        'Entity' => __DIR__ . '/../..' . '/core/bases/Entity.php',
+        'FM_Config' => __DIR__ . '/../..' . '/core/files.php',
+        'FM_Zipper' => __DIR__ . '/../..' . '/core/files.php',
+        'FM_Zipper_Tar' => __DIR__ . '/../..' . '/core/files.php',
+        'FileDoesNotExist' => __DIR__ . '/../..' . '/core/exceptions/FileDoesNotExist.php',
+        'ForeignKeyViolated' => __DIR__ . '/../..' . '/core/exceptions/ForeignKeyViolated.php',
+        'ForexScrapper' => __DIR__ . '/../..' . '/app/processes/updateMarketTiming.php',
+        'Get' => __DIR__ . '/../..' . '/app/endpoints/exstocks/Get.php',
+        'GetAll' => __DIR__ . '/../..' . '/app/endpoints/params/GetAll.php',
+        'GetFilters' => __DIR__ . '/../..' . '/app/endpoints/GetFilters.php',
+        'GetLossParams' => __DIR__ . '/../..' . '/app/endpoints/params/GetLossParams.php',
+        'GetParameters' => __DIR__ . '/../..' . '/core/database/phpliteadmin.php',
+        'ITradeStation' => __DIR__ . '/../..' . '/app/model/interfaces/ITradeStation.php',
+        'IncompatibleEntities' => __DIR__ . '/../..' . '/core/exceptions/IncompatibleEntities.php',
+        'Initiator' => __DIR__ . '/../..' . '/app/model/services/Initiator.php',
+        'InstallPlugin' => __DIR__ . '/../..' . '/core/API/endpoints/InstallPlugin.php',
+        'InsufficientMoney' => __DIR__ . '/../..' . '/app/model/services/TradeStation.php',
+        'InvalidAccountID' => __DIR__ . '/../..' . '/app/model/services/TradeStation.php',
+        'InvalidArguments' => __DIR__ . '/../..' . '/core/exceptions/InvalidArguments.php',
+        'InvalidID' => __DIR__ . '/../..' . '/core/exceptions/InvalidID.php',
+        'JoinImpossible' => __DIR__ . '/../..' . '/core/exceptions/JoinImpossible.php',
+        'Login' => __DIR__ . '/../..' . '/app/endpoints/Login.php',
+        'Mapper' => __DIR__ . '/../..' . '/core/bases/Mapper.php',
+        'MarketTimingScrapper' => __DIR__ . '/../..' . '/app/processes/updateMarketTiming.php',
+        'MicroTimer' => __DIR__ . '/../..' . '/core/database/phpliteadmin.php',
+        'MissingNumberOfTrades' => __DIR__ . '/../..' . '/app/model/services/TradeStation.php',
+        'MyRegex' => __DIR__ . '/../..' . '/app/helpers/MyRegex.php',
+        'Ndate' => __DIR__ . '/../..' . '/core/helpers/Ndate.php',
+        'Order' => __DIR__ . '/../..' . '/app/model/entities/Order.php',
+        'OrderFailed' => __DIR__ . '/../..' . '/app/model/exceptions/OrderFailed.php',
+        'OrderMapper' => __DIR__ . '/../..' . '/app/model/mappers/OrderMapper.php',
+        'Parser' => __DIR__ . '/../..' . '/app/model/services/Parser.php',
+        'PermissionDenied' => __DIR__ . '/../..' . '/core/exceptions/PermissionDenied.php',
+        'Process' => __DIR__ . '/../..' . '/app/model/services/Process.php',
+        'Processes' => __DIR__ . '/../..' . '/app/endpoints/testing/Processes.php',
+        'PropertyNotExisting' => __DIR__ . '/../..' . '/core/exceptions/PropertyNotExisting.php',
+        'QuoteStreamer' => __DIR__ . '/../..' . '/app/model/services/QuoteStreamer.php',
+        'Regex' => __DIR__ . '/../..' . '/core/helpers/Regex.php',
+        'ReinstallPlugin' => __DIR__ . '/../..' . '/core/API/endpoints/ReinstallPlugin.php',
+        'Rejected' => __DIR__ . '/../..' . '/app/model/services/DefensiveTrader.php',
+        'RequiredPropertyNotFound' => __DIR__ . '/../..' . '/core/exceptions/RequiredPropertyNotFound.php',
+        'Resources' => __DIR__ . '/../..' . '/core/database/phpliteadmin.php',
+        'Response' => __DIR__ . '/../..' . '/core/proxy/Response.php',
+        'ResponseFile' => __DIR__ . '/../..' . '/core/proxy/Response.php',
+        'RootOnly' => __DIR__ . '/../..' . '/core/bases/RootOnly.php',
+        'Route' => __DIR__ . '/../..' . '/core/proxy/Router.php',
+        'Scenario' => __DIR__ . '/../..' . '/core/bases/Testable.php',
+        'ScrapeFailed' => __DIR__ . '/../..' . '/app/processes/updateMarketTiming.php',
+        'Sequence' => __DIR__ . '/../..' . '/app/model/services/Sequence.php',
+        'SetBuyParams' => __DIR__ . '/../..' . '/app/endpoints/params/SetBuyParams.php',
+        'SetGlobalParams' => __DIR__ . '/../..' . '/app/endpoints/params/SetGlobalParams.php',
+        'SetLossSettings' => __DIR__ . '/../..' . '/app/endpoints/params/SetLossSettings.php',
+        'SetSellParams' => __DIR__ . '/../..' . '/app/endpoints/params/SetSellParams.php',
+        'Shutdown' => __DIR__ . '/../..' . '/app/endpoints/testing/Shutdown.php',
+        'Start' => __DIR__ . '/../..' . '/app/endpoints/Start.php',
+        'StockLogger' => __DIR__ . '/../..' . '/app/helpers/StockLogger.php',
+        'StockMonitor' => __DIR__ . '/../..' . '/app/model/services/StockMonitor.php',
+        'StockOperations' => __DIR__ . '/../..' . '/app/endpoints/StockOperations.php',
+        'Stop' => __DIR__ . '/../..' . '/app/endpoints/Stop.php',
+        'StreamRejected' => __DIR__ . '/../..' . '/app/model/exceptions/StreamRejected.php',
+        'StreamSubscriptionFailed' => __DIR__ . '/../..' . '/app/model/services/QuoteStreamer.php',
+        'TableNotFound' => __DIR__ . '/../..' . '/core/database/DB.php',
+        'Test' => __DIR__ . '/../..' . '/app/endpoints/testing/Test.php',
+        'TestProcess' => __DIR__ . '/../..' . '/app/endpoints/testing/TestProcess.php',
+        'TestStocks' => __DIR__ . '/../..' . '/app/endpoints/testing/TestStocks.php',
+        'Testable' => __DIR__ . '/../..' . '/core/bases/Testable.php',
+        'Timing' => __DIR__ . '/../..' . '/app/model/services/Timing.php',
+        'TradeMonitor' => __DIR__ . '/../..' . '/app/model/services/TradeMonitor.php',
+        'TradeStation' => __DIR__ . '/../..' . '/app/model/services/TradeStation.php',
+        'TradedStock' => __DIR__ . '/../..' . '/app/model/entities/TradedStock.php',
+        'TradedStockMapper' => __DIR__ . '/../..' . '/app/model/mappers/TradedStockMapper.php',
+        'UninstallPlugin' => __DIR__ . '/../..' . '/core/API/endpoints/UninstallPlugin.php',
+        'UniquenessViolated' => __DIR__ . '/../..' . '/core/exceptions/UniquenessViolated.php',
+        'UnregisteredLoader' => __DIR__ . '/../..' . '/app/model/services/ArteCache.php',
+        'UnwantedStock' => __DIR__ . '/../..' . '/app/model/entities/UnwantedStock.php',
+        'UnwantedStockMapper' => __DIR__ . '/../..' . '/app/model/mappers/UnwantedStockMapper.php',
+        'UpdateArte' => __DIR__ . '/../..' . '/core/API/endpoints/UpdateArte.php',
+        'Validator' => __DIR__ . '/../..' . '/core/services/Validator.php',
+        'login' => __DIR__ . '/../..' . '/app/endpoints/testing/login.php',
     );
 
     public static function getInitializer(ClassLoader $loader)

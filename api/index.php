@@ -2,7 +2,8 @@
 
 ob_start();
 
-require "autoload.php";
+require_once "autoload.php";
+
 
 try {
   // Initialize the logger

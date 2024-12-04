@@ -1,7 +1,7 @@
 var config = {
   "APPNAME": "Auto-Trade",
   "BASE": "/",
-  "API": "http://178.156.138.23//api",
+  "API": `${window.location.protocol}//178.156.138.23/api`,
   "routes": {
     "": "home",
     "login": "login",

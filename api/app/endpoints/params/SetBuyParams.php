@@ -8,14 +8,14 @@ class SetBuyParams extends Endpoint
         $this->params_file = JSONS_DIR . "/params.json";
 
         $this->init([
-            'runs' => [false, [
+            'runs' => [true, [
                 'number_of_trades' => [true, Regex::INT],
                 'buying_power_percent' => [true, MyRegex::FLOAT],
                 'trade_after' => [true, Regex::INT],
                 'stop_loss_percent' => [true, Regex::ANY],
                 'sequences' => [true, [
-                    'percent' => [true, Regex::generic(1, 200)],
-                    'wait_time' => [true, Regex::generic(1, 200)],
+                    'trigger' => [true, Regex::generic(1, 200)],
+                    'trail' => [true, Regex::generic(1, 200)],
                 ], true],
                 'sid' => [true, Regex::INT],
                 'dir' => [true, "/^(ASC|DESC)$/"],

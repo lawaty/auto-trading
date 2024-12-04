@@ -2,17 +2,8 @@
 
 $_ENV = require_once __DIR__ . "/proxy/env.php";
 
-/**
- * Arte Default Autoloader
- */
-$autoloader = ArteAutoloader::getLoader();
-spl_autoload_register(function ($classname) {
-  global $autoloader;
-  $autoloader->load($classname);
-});
-
 $prod = $_ENV['PROD'] ?? false;
-if (isset($_REQUEST['debug']) && !$prod){
+if (!$prod && isset($_REQUEST['debug'])){
   define('DEBUG', true);
   ini_set('display_errors', 1);
 }
