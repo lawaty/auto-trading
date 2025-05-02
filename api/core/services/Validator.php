@@ -14,7 +14,7 @@ class Validator
   private array $expect = [];
   private array $filtered = [];
 
-  public function __construct(array $expect, bool $is_many = SINGLE)
+  public function __construct(array $expect)
   {
     foreach ($expect as $param => $criteria) {
       if (!isset($criteria[2]))
@@ -28,7 +28,7 @@ class Validator
       if (is_array($criteria[1])) { // Nesting Validators
         $this->expect[$param] = [
           $criteria[0],
-          new Validator($criteria[1], $criteria[2]),
+          new Validator($criteria[1]),
           $criteria[2]
         ];
       } elseif (!is_string($criteria[1]) && !is_callable($criteria[1])) {
@@ -131,7 +131,7 @@ class Validator
             if (is_array($input[$param]) && array_keys($input[$param]) !== range(0, count($input[$param]) - 1)) {
               $input[$param] = [$input[$param]];
             }
-            $result[$param] = array_map(fn ($item) => $validation->filterInput($item), $input[$param]);
+            $result[$param] = array_map(fn($item) => $validation->filterInput($item), $input[$param]);
           }
         } else {
           if ($is_many === SINGLE) {
@@ -184,6 +184,73 @@ class Validator
     }
 
     echo "</pre>";
+  }
+
+  public function findAllInvalid($value, $validation, $path): array
+  {
+    $errors = [];
+
+    if ($validation instanceof Validator) {
+      return $validation->getAllInvalid($value, $path);
+    } elseif (is_callable($validation)) {
+      if (!$validation($value)) {
+        $errors[] = "Invalid value at $path";
+      }
+    } elseif (is_string($validation) && !preg_match($validation, (string) $value)) {
+      $errors[] = "Validation failed at $path";
+    } elseif (is_array($validation)) {
+      foreach ($validation as $field => $subValidation) {
+        if (!isset($value[$field])) {
+          $errors[] = "Missing required field: $path -> $field";
+        } else {
+          $errors = array_merge($errors, $this->findAllInvalid($value[$field], $subValidation, "$path -> $field"));
+        }
+      }
+    }
+
+    return $errors;
+  }
+
+  public function getAllInvalid(array $input, string $path = ''): array
+  {
+    $errors = [];
+
+    foreach ($this->expect as $param => $criteria) {
+      [$required, $validation, $is_many] = $criteria;
+      $currentPath = $path ? "$path -> $param" : $param;
+
+      // Check for missing required fields
+      if ($required === REQ && !isset($input[$param])) {
+        $errors[] = "Missing required field: $currentPath";
+        continue;
+      } elseif ($required === OPT && !isset($input[$param])) {
+        continue;
+      }
+
+      // Handle SINGLE validation
+      if ($is_many === SINGLE) {
+        $errors = array_merge($errors, $this->findAllInvalid($input[$param], $validation, $currentPath));
+      } else {
+        // Ensure input is an array
+        if (!is_array($input[$param])) {
+          $errors[] = "Expected an array at $currentPath but got " . gettype($input[$param]);
+          continue;
+        }
+
+        // Ensure it's properly indexed
+        if (array_keys($input[$param]) !== range(0, count($input[$param]) - 1)) {
+          $input[$param] = [$input[$param]];
+        }
+
+        // Iterate through elements
+        foreach ($input[$param] as $index => $workpiece) {
+          $tempPath = "{$currentPath}[$index]";
+          $errors = array_merge($errors, $this->findAllInvalid($workpiece, $validation, $tempPath));
+        }
+      }
+    }
+
+    return $errors;
   }
 }
 

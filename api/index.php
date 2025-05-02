@@ -4,7 +4,6 @@ ob_start();
 
 require_once "autoload.php";
 
-
 try {
   // Initialize the logger
   $logger = ArteLogger::getLogger();

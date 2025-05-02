@@ -4,8 +4,8 @@ const BUYING_TOLERANCE = 0.98;
 
 class TradeStation implements ITradeStation
 {
-    private string $api_key = 'lMujDTbmHrqZ5a7EkPSyskivY9doHu54';
-    private string $api_secret = 'AIK6Sot-Nz_QbwbOUuL5TuYZx741S978Jnie3pRQUt7PwusNBA4KdbcV8epUdRzg';
+    private string $api_key = '';
+    private string $api_secret = '';
     private string $refresh_token = 'T06fxV7y9MGVv1nk0EkFu9JjQ3wYt04lNWNP51lx9A8RX';
     public string $access_token;
     public string $live_trade_api_base = "https://api.tradestation.com/v3";
